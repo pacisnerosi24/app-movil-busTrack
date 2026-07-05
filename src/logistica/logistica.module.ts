@@ -6,6 +6,9 @@ import { MongoUbicacionRepository } from './infraestructura/adaptadores-salida/p
 import { ActualizarUbicacionService } from './aplicacion/casos-uso/actualizar-ubicacion.service';
 import { ObtenerUbicacionService } from './aplicacion/casos-uso/obtener-ubicacion.service';
 import { GpsController } from './infraestructura/adaptadores-entrada/controladores/gps.controller';
+import { NOTIFICADOR_UBICACION } from './aplicacion/puertos/notificador-ubicacion.interface';
+import { RastreoGateway } from './infraestructura/adaptadores-salida/websockets/rastreo.gateway';
+
 
 @Module({
   imports: [
@@ -19,9 +22,12 @@ import { GpsController } from './infraestructura/adaptadores-entrada/controlador
       provide: UBICACION_REPOSITORY,
       useClass: MongoUbicacionRepository,
     },
+    {
+      provide: NOTIFICADOR_UBICACION,
+      useClass: RastreoGateway,
+    },
     ActualizarUbicacionService,
     ObtenerUbicacionService,
   ],
-  exports: [ActualizarUbicacionService],
 })
 export class LogisticaModule {}

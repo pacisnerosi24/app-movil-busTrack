@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { UBICACION_REPOSITORY, type IUbicacionRepository } from '../puertos/ubicacion.repository.interface';
+import { NOTIFICADOR_UBICACION, type INotificadorUbicacion } from '../puertos/notificador-ubicacion.interface';
 import { Bus } from '../../dominio/entidades/bus.entity';
 import { CoordenadaGps } from '../../dominio/value-objects/coordenada-gps';
 
@@ -9,6 +10,9 @@ export class ActualizarUbicacionService {
   constructor(
     @Inject(UBICACION_REPOSITORY)
     private readonly ubicacionRepository: IUbicacionRepository,
+
+    @Inject(NOTIFICADOR_UBICACION)
+    private readonly notificador: INotificadorUbicacion,
   ) {}
 
   async ejecutar(idBus: string, latitud: number, longitud: number): Promise<void> {
@@ -19,5 +23,6 @@ export class ActualizarUbicacionService {
     await this.ubicacionRepository.guardarUbicacion(busActualizado);
     
     // (En el futuro, aquí también emitiremos el evento por WebSockets)
+    this.notificador.notificarNuevaUbicacion(busActualizado);
   }
 }
