@@ -19,4 +19,8 @@ export class Password {
   static desdeHash(hashExistente: string): Password {
     return new Password(hashExistente);
   }
+
+  async esCorrecta(textoPlano: string): Promise<boolean> {
+    return await bcrypt.compare(textoPlano, this.valorHash);
+  }
 }
