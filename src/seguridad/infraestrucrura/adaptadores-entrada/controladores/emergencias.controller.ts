@@ -1,8 +1,10 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { DispararAlertaService } from '../../../aplicacion/casos-uso/disparar-alerta.service';
 import { CrearAlertaDto } from '../dto/crear-alerta.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('api/emergencias')
+@UseGuards(AuthGuard('jwt'))
 export class EmergenciasController {
   constructor(private readonly dispararAlertaService: DispararAlertaService) {}
 

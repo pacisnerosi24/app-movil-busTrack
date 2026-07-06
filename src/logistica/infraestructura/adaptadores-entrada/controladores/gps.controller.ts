@@ -1,9 +1,11 @@
-import { Controller, Post, Get, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ActualizarUbicacionService } from '../../../../logistica/aplicacion/casos-uso/actualizar-ubicacion.service';
 import { ObtenerUbicacionService } from '../../../../logistica/aplicacion/casos-uso/obtener-ubicacion.service';
 import { CrearUbicacionDto } from '../dto/crear-ubicacion.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('api/gps')
+@UseGuards(AuthGuard('jwt'))
 export class GpsController {
   constructor(
     private readonly actualizarUbicacionService: ActualizarUbicacionService,
