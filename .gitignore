@@ -58,3 +58,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Compilación de TypeScript
 dist/
 *.tsbuildinfo
+
+# Docker bind-mounts de datos
+/postgresql_data
+/mongodb_data
