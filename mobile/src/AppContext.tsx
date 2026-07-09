@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useRef, useCallback, useEffect, Re
 import * as Location from 'expo-location';
 import { Usuario } from './api';
 import { Ruta } from './mockData';
+import { getApiBase, initApiBase, setApiBase } from './config';
 
 export type Coords = { lat: number; lng: number };
 export type UbicStatus = 'idle' | 'loading' | 'ok' | 'denied' | 'error';
@@ -19,6 +20,9 @@ type AppState = {
   seguimiento: boolean;
   iniciarSeguimiento: () => Promise<void>;
   logout: () => void;
+  // URL del backend en uso (autodetectada o manual desde Ajustes).
+  apiBase: string;
+  updateApiBase: (url: string) => void;
 };
 
 const Ctx = createContext<AppState | null>(null);
@@ -35,7 +39,17 @@ export function AppProvider({
   const [userLoc, setUserLoc] = useState<Coords | null>(null);
   const [ubicStatus, setUbicStatus] = useState<UbicStatus>('idle');
   const [seguimiento, setSeguimiento] = useState(false);
+  const [apiBase, setApiBaseState] = useState<string>(getApiBase());
   const subRef = useRef<Location.LocationSubscription | null>(null);
+
+  // Al arrancar: si hay una URL de backend guardada (ej. ngrok), la aplica.
+  useEffect(() => { initApiBase().then(setApiBaseState); }, []);
+
+  // Cambia la URL del backend en vivo (llamada desde Ajustes).
+  const updateApiBase = useCallback((url: string) => {
+    setApiBase(url);
+    setApiBaseState(getApiBase());
+  }, []);
 
   // El administrador también puede actuar como conductor para pruebas.
   const esConductor = usuario.rol === 'conductor' || usuario.rol === 'administrador';
@@ -65,6 +79,7 @@ export function AppProvider({
     <Ctx.Provider value={{
       token, usuario, esConductor, rutaSeleccionada, setRutaSeleccionada,
       userLoc, ubicStatus, seguimiento, iniciarSeguimiento, logout: onLogout,
+      apiBase, updateApiBase,
     }}>
       {children}
     </Ctx.Provider>

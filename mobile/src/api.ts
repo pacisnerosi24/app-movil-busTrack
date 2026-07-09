@@ -1,4 +1,4 @@
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 
 export type Usuario = { id: string; email: string; rol: string };
 export type LoginResp = { token: string; usuario: Usuario };
@@ -6,9 +6,23 @@ export type LoginResp = { token: string; usuario: Usuario };
 export type Rol = 'conductor' | 'pasajero';
 export type RegistroResp = { mensaje: string; usuario: Usuario };
 
+// Prueba que una URL de backend responda (health check GET /).
+// La usa la pantalla de Ajustes antes de guardar la URL.
+export async function testConnection(base: string): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(`${base.replace(/\/+$/, '')}/`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Registra un usuario nuevo (POST /api/auth/registro).
 export async function registrar(email: string, password: string, rol: Rol): Promise<RegistroResp> {
-  const r = await fetch(`${API_BASE}/api/auth/registro`, {
+  const r = await fetch(`${getApiBase()}/api/auth/registro`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, rol }),
@@ -23,7 +37,7 @@ export async function registrar(email: string, password: string, rol: Rol): Prom
 }
 
 export async function login(email: string, password: string): Promise<LoginResp> {
-  const r = await fetch(`${API_BASE}/api/auth/login`, {
+  const r = await fetch(`${getApiBase()}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -42,7 +56,7 @@ export async function enviarUbicacion(
   latitud: number,
   longitud: number,
 ): Promise<void> {
-  const r = await fetch(`${API_BASE}/api/gps/ubicacion`, {
+  const r = await fetch(`${getApiBase()}/api/gps/ubicacion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ idBus, latitud, longitud }),
@@ -59,7 +73,7 @@ export type AlertaResp = { mensaje: string; alertaId: string; esCritica: boolean
 // El backend solo acepta PANICO_MANUAL / IA_ACUSTICO, así que la demo envía
 // PANICO_MANUAL para cualquier tipo de incidente reportado.
 export async function dispararAlerta(token: string, idBus: string): Promise<AlertaResp> {
-  const r = await fetch(`${API_BASE}/api/emergencias/alerta`, {
+  const r = await fetch(`${getApiBase()}/api/emergencias/alerta`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ idBus, tipo: 'PANICO_MANUAL' }),
