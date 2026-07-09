@@ -48,6 +48,9 @@ export function buildMapHtml(
     /* Tu ubicación (punto azul estilo Uber/Google) */
     .me { width:20px; height:20px; border-radius:50%; background:#2563EB; border:3px solid #fff;
       box-shadow:0 0 0 7px rgba(37,99,235,.20), 0 2px 6px rgba(0,0,0,.35); }
+    /* Tu parada (dónde te recoge el bus) */
+    .parada-me { width:16px; height:16px; border-radius:5px; background:#16A34A; border:3px solid #fff;
+      box-shadow:0 2px 6px rgba(0,0,0,.35); }
     .lbl { background:rgba(14,27,46,.92); color:#fff; font-family:system-ui,sans-serif;
       font-size:11px; font-weight:700; padding:3px 8px; border-radius:7px; white-space:nowrap; }
   </style>
@@ -86,6 +89,13 @@ export function buildMapHtml(
     window.__setUser = function(la, ln){
       if (!me) { me = L.marker([la, ln], { icon: meIcon, zIndexOffset: 500 }).addTo(map).bindPopup('Tú'); }
       else { me.setLatLng([la, ln]); }
+    };
+    // Marcador "Tu parada": el punto de la ruta donde te recoge el bus.
+    var stopIcon = L.divIcon({ className:'', html:'<div class="parada-me"></div>', iconSize:[16,16], iconAnchor:[8,8] });
+    var stopMe = null;
+    window.__setStop = function(la, ln){
+      if (!stopMe) { stopMe = L.marker([la, ln], { icon: stopIcon, zIndexOffset: 400 }).addTo(map).bindPopup('Tu parada'); }
+      else { stopMe.setLatLng([la, ln]); }
     };
 
     var encuadre = USER ? ROUTE.concat([[USER.lat, USER.lng]]) : ROUTE;
@@ -174,7 +184,7 @@ export function buildMapHtml(
         if (following) map.panTo([p.la,p.ln], { animate:false });
 
         var eta=Math.max(0, Math.ceil(MIN*(1-frac)));
-        post({ type:'progress', frac:frac, eta:eta, prox:proxParada(frac*total), arrived:frac>=1 });
+        post({ type:'progress', frac:frac, eta:eta, prox:proxParada(frac*total), arrived:frac>=1, lat:p.la, lng:p.ln });
 
         var now=Date.now();
         if (now-lastGps>1500){ lastGps=now; post({ type:'gps', lat:p.la, lng:p.ln }); }

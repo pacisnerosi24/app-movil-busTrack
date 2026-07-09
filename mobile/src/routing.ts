@@ -33,6 +33,39 @@ export async function getRoadRoute(waypoints: LatLng[]): Promise<RoadRoute> {
   }
 }
 
+// ── Utilidades de distancia / proyección ──
+
+// Distancia en metros entre dos coordenadas (fórmula de Haversine).
+export function metrosEntre(a: LatLng, b: LatLng): number {
+  const R = 6371000;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const la1 = (a[0] * Math.PI) / 180;
+  const la2 = (b[0] * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Distancias acumuladas (metros) a lo largo de una polilínea.
+export function distanciasAcumuladas(coords: LatLng[]): { cum: number[]; total: number } {
+  const cum = [0];
+  for (let i = 1; i < coords.length; i++) cum[i] = cum[i - 1] + metrosEntre(coords[i - 1], coords[i]);
+  return { cum, total: cum.length ? cum[cum.length - 1] : 0 };
+}
+
+// Proyecta un punto (el pasajero) sobre la ruta: devuelve el vértice más
+// cercano (su "parada"), a qué distancia va sobre la ruta y qué tan lejos
+// está de la ruta (crossM: si es grande, el pasajero no está sobre la ruta).
+export function proyectar(coords: LatLng[], cum: number[], punto: LatLng): { idx: number; alongM: number; crossM: number } {
+  let best = Infinity;
+  let idx = 0;
+  for (let i = 0; i < coords.length; i++) {
+    const d = metrosEntre(coords[i], punto);
+    if (d < best) { best = d; idx = i; }
+  }
+  return { idx, alongM: cum[idx] ?? 0, crossM: best };
+}
+
 // ── Tráfico simulado por hora del día ──
 // OSRM gratis no trae tráfico en vivo; simulamos congestión según la hora real
 // del teléfono (horas pico = más lento). Reemplazable por un proveedor con

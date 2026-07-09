@@ -5,13 +5,17 @@ import { WebView } from 'react-native-webview';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { enviarUbicacion } from '../api';
 import { buildMapHtml, Parada } from '../mapHtml';
-import { getRoadRoute, getTraficoAhora, RoadRoute, Trafico } from '../routing';
-import { API_BASE } from '../config';
+import { getRoadRoute, getTraficoAhora, RoadRoute, Trafico, metrosEntre, distanciasAcumuladas, proyectar } from '../routing';
 import { useApp } from '../AppContext';
 import { colors, radius } from '../theme';
 
+// Formatea metros a "850 m" o "1.2 km".
+function fmtDist(m: number): string {
+  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
 export default function MapScreen({ navigation }: any) {
-  const { token, rutaSeleccionada, userLoc, ubicStatus, esConductor } = useApp();
+  const { token, rutaSeleccionada, userLoc, ubicStatus, esConductor, apiBase } = useApp();
   const ruta = rutaSeleccionada;
   const modo: 'conductor' | 'pasajero' = esConductor ? 'conductor' : 'pasajero';
   const [transmisiones, setTransmisiones] = useState(0);
@@ -42,12 +46,13 @@ export default function MapScreen({ navigation }: any) {
   const webRef = useRef<WebView>(null);
   const [road, setRoad] = useState<RoadRoute | null>(null);
   const [trafico] = useState<Trafico>(() => getTraficoAhora());
-  const [playing, setPlaying] = useState(true);
   const [eta, setEta] = useState(ruta?.minutos ?? 0);
   const [frac, setFrac] = useState(0);
   const [prox, setProx] = useState(ruta?.origen ?? '');
   const [moviendo, setMoviendo] = useState(false);
   const [siguiendo, setSiguiendo] = useState(true);
+  const [etaMe, setEtaMe] = useState<number | null>(null); // min hasta que el bus llega a ti
+  const [distMe, setDistMe] = useState<number | null>(null); // metros del bus a ti
 
   useEffect(() => {
     let vivo = true;
@@ -88,13 +93,31 @@ export default function MapScreen({ navigation }: any) {
     [ruta?.id, anchoredPath],
   );
 
+  // Métricas de la ruta y proyección del pasajero (para el ETA hacia él).
+  const metrics = useMemo(() => distanciasAcumuladas(road?.coords ?? []), [road]);
+  const speedMps = road && road.durationSec > 0 ? road.distanceM / road.durationSec : 5;
+  const proj = useMemo(
+    () => (road && userLoc && !esConductor ? proyectar(road.coords, metrics.cum, [userLoc.lat, userLoc.lng]) : null),
+    [road, userLoc?.lat, userLoc?.lng, metrics, esConductor],
+  );
+  // ¿El pasajero está sobre esta ruta? (a menos de 1.5 km)
+  const cercaDeRuta = !!proj && proj.crossM < 1500;
+
+  // Dibuja "Tu parada" (punto de la ruta donde te recoge el bus).
+  useEffect(() => {
+    if (road && proj && cercaDeRuta) {
+      const [la, ln] = road.coords[proj.idx];
+      webRef.current?.injectJavaScript(`window.__setStop && window.__setStop(${la}, ${ln}); true;`);
+    }
+  }, [proj, road, cercaDeRuta]);
+
   // El HTML se genera una vez por ruta (marcador inicial en el ancla; el
   // punto "Tú" luego se mueve en vivo con window.__setUser).
   const html = useMemo(
     () => (road && ruta
-      ? buildMapHtml(API_BASE, ruta.idBus, ruta.color, road.coords, paradas, etaTotal, 1, (esConductor || ruta.real) ? null : anchor, modo)
+      ? buildMapHtml(apiBase, ruta.idBus, ruta.color, road.coords, paradas, etaTotal, 1, (esConductor || ruta.real) ? null : anchor, modo)
       : ''),
-    [road, ruta?.id, etaTotal, paradas, anchor, modo],
+    [road, ruta?.id, etaTotal, paradas, anchor, modo, apiBase],
   );
 
   if (!ruta) {
@@ -109,14 +132,6 @@ export default function MapScreen({ navigation }: any) {
     );
   }
 
-  function cmd(action: 'play' | 'pause') {
-    webRef.current?.injectJavaScript(`window.__cmd && window.__cmd('${action}'); true;`);
-  }
-  function togglePlay() {
-    const next = !playing;
-    setPlaying(next);
-    cmd(next ? 'play' : 'pause');
-  }
   function recentrar() {
     webRef.current?.injectJavaScript(`window.__recenter && window.__recenter(); true;`);
     setSiguiendo(true);
@@ -127,6 +142,14 @@ export default function MapScreen({ navigation }: any) {
       if (m.type === 'progress') {
         setEta(m.eta); setFrac(m.frac); setProx(m.prox);
         setMoviendo(m.frac > 0 && m.frac < 1);
+        // ETA y distancia del bus hacia el pasajero.
+        if (proj && metrics.total > 0 && userLoc) {
+          const busAlong = m.frac * metrics.total;
+          // Distancia que le falta al bus para llegar a tu parada (con vuelta si ya pasó).
+          const rem = (((proj.alongM - busAlong) % metrics.total) + metrics.total) % metrics.total;
+          setEtaMe(Math.max(0, Math.ceil(rem / speedMps / 60)));
+          setDistMe(metrosEntre([m.lat, m.lng], [userLoc.lat, userLoc.lng]));
+        }
       } else if (m.type === 'follow') {
         setSiguiendo(m.following);
       }
@@ -221,16 +244,26 @@ export default function MapScreen({ navigation }: any) {
                 <Text style={styles.proxTxt} numberOfLines={1}>{transmisiones} ubicaciones enviadas</Text>
               </View>
             </>
+          ) : cercaDeRuta ? (
+            <>
+              <Text style={styles.etaLabel}>Tu bus llega en:</Text>
+              <Text style={styles.eta}>{etaMe ?? '—'} min</Text>
+              <View style={styles.proxRow}>
+                <Ionicons name="navigate" size={13} color={ruta.color} />
+                <Text style={styles.proxTxt} numberOfLines={1}>
+                  El bus está a {distMe != null ? fmtDist(distMe) : '—'} de ti
+                </Text>
+              </View>
+            </>
           ) : (
             <>
-              <Text style={styles.etaLabel}>{llego ? 'Estado' : 'Llegará en:'}</Text>
-              <Text style={styles.eta}>{llego ? '¡Llegaste!' : `${eta} min`}</Text>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${Math.round(frac * 100)}%`, backgroundColor: ruta.color }]} />
-              </View>
+              <Text style={styles.etaLabel}>Recorrido de la ruta</Text>
+              <Text style={styles.eta}>{eta} min</Text>
               <View style={styles.proxRow}>
-                <Ionicons name="location" size={13} color={ruta.color} />
-                <Text style={styles.proxTxt} numberOfLines={1}>Próxima: {prox}</Text>
+                <Ionicons name="information-circle-outline" size={13} color={colors.textMutedDark} />
+                <Text style={styles.proxTxt} numberOfLines={1}>
+                  {ruta.real ? 'Ruta real de Quito — no estás en esa zona' : 'No estás sobre esta ruta'}
+                </Text>
               </View>
             </>
           )}
@@ -242,14 +275,10 @@ export default function MapScreen({ navigation }: any) {
             <Text style={styles.busBtnTxt}>LIVE</Text>
           </View>
         ) : (
-          <TouchableOpacity
-            style={[styles.busBtn, { backgroundColor: playing ? ruta.color : colors.textMutedDark }]}
-            onPress={togglePlay}
-            activeOpacity={0.85}
-          >
-            <Ionicons name={playing ? 'pause' : 'play'} size={30} color="#fff" />
-            <Text style={styles.busBtnTxt}>{playing ? 'Pausar' : 'Seguir'}</Text>
-          </TouchableOpacity>
+          <View style={[styles.busBtn, { backgroundColor: ruta.color }]}>
+            <MaterialCommunityIcons name="bus" size={30} color="#fff" />
+            <Text style={styles.busBtnTxt}>En ruta</Text>
+          </View>
         )}
       </View>
     </View>
