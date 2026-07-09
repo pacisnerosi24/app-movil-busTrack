@@ -136,6 +136,15 @@ export default function MapScreen({ navigation }: any) {
     webRef.current?.injectJavaScript(`window.__recenter && window.__recenter(); true;`);
     setSiguiendo(true);
   }
+  // Centra el mapa en TU ubicación (y reafirma el punto por si el mapa recargó).
+  function centrarEnMi() {
+    if (!userLoc) return;
+    webRef.current?.injectJavaScript(
+      `window.__setUser && window.__setUser(${userLoc.lat}, ${userLoc.lng});` +
+      `window.__recenterMe && window.__recenterMe(); true;`,
+    );
+    setSiguiendo(false);
+  }
   function onMessage(raw: string) {
     try {
       const m = JSON.parse(raw);
@@ -216,13 +225,21 @@ export default function MapScreen({ navigation }: any) {
         )}
       </SafeAreaView>
 
-      {/* Botón recentrar (estilo Uber): aparece al soltar la cámara */}
-      {!siguiendo && (
-        <TouchableOpacity style={[styles.recenter, { borderColor: ruta.color }]} onPress={recentrar} activeOpacity={0.85}>
-          <MaterialCommunityIcons name="crosshairs-gps" size={22} color={ruta.color} />
-          <Text style={[styles.recenterTxt, { color: ruta.color }]}>Seguir bus</Text>
-        </TouchableOpacity>
-      )}
+      {/* Botones flotantes (estilo Uber) */}
+      <View style={styles.fabCol} pointerEvents="box-none">
+        {!esConductor && userLoc && (
+          <TouchableOpacity style={styles.fab} onPress={centrarEnMi} activeOpacity={0.85}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.blue} />
+            <Text style={[styles.fabTxt, { color: colors.blue }]}>Mi ubicación</Text>
+          </TouchableOpacity>
+        )}
+        {!siguiendo && (
+          <TouchableOpacity style={[styles.fab, { borderColor: ruta.color, borderWidth: 1.5 }]} onPress={recentrar} activeOpacity={0.85}>
+            <MaterialCommunityIcons name="bus" size={22} color={ruta.color} />
+            <Text style={[styles.fabTxt, { color: ruta.color }]}>Seguir bus</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={styles.card}>
         <View style={{ flex: 1 }}>
@@ -301,8 +318,9 @@ const styles = StyleSheet.create({
   chipTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
   warn: { alignSelf: 'flex-start', backgroundColor: colors.orange, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginTop: 8 },
   warnTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  recenter: { position: 'absolute', right: 16, bottom: 215, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 999, borderWidth: 1.5, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  recenterTxt: { fontWeight: '800', fontSize: 13 },
+  fabCol: { position: 'absolute', right: 16, bottom: 215, alignItems: 'flex-end', gap: 10 },
+  fab: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fabTxt: { fontWeight: '800', fontSize: 13 },
   card: { position: 'absolute', left: 14, right: 14, bottom: 16, backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   cardDot: { width: 9, height: 9, borderRadius: 5 },

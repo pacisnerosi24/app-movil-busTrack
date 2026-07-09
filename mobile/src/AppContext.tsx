@@ -64,6 +64,20 @@ export function AppProvider({
       if (status !== 'granted') { setUbicStatus('denied'); return; }
       setUbicStatus('ok');
       setSeguimiento(true);
+
+      // 1) Posición INMEDIATA para que el marcador aparezca ya mismo.
+      //    watchPositionAsync puede tardar en dar el primer punto (o esperar
+      //    a que te muevas), así que primero pedimos una lectura directa.
+      try {
+        const ultima = await Location.getLastKnownPositionAsync();
+        if (ultima) setUserLoc({ lat: ultima.coords.latitude, lng: ultima.coords.longitude });
+        const actual = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLoc({ lat: actual.coords.latitude, lng: actual.coords.longitude });
+      } catch {
+        // Si falla la lectura directa, el watch de abajo igual actualizará.
+      }
+
+      // 2) Rastreo en vivo (se actualiza mientras te mueves).
       subRef.current = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 5 },
         (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),

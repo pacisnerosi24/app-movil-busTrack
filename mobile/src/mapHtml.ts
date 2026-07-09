@@ -115,6 +115,13 @@ export function buildMapHtml(
       map.setView(bus.getLatLng(), map.getZoom(), { animate: true });
       post({ type:'follow', following:true });
     };
+    // Centra la cámara en TU ubicación (suelta el seguimiento del bus).
+    window.__recenterMe = function(){
+      if (!me) return;
+      following = false;
+      map.setView(me.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
+      post({ type:'follow', following:false });
+    };
 
     // Ruta completa (tenue) + tramo recorrido (sólido)
     L.polyline(ROUTE, { color: COLOR, weight: 5, opacity: .3 }).addTo(map);
