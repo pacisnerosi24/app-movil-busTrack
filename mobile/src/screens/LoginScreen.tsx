@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { login, Usuario } from '../api';
+import { login, Usuario, testConnection } from '../api';
+import { getApiBase, persistApiBase } from '../config';
 import { colors, radius } from '../theme';
 
 type Props = {
@@ -18,6 +19,9 @@ export default function LoginScreen({ onLogin, onIrARegistro }: Props) {
   const [verPass, setVerPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfig, setShowConfig] = useState(false);
+  const [serverUrl, setServerUrl] = useState(getApiBase());
+  const [probandoUrl, setProbandoUrl] = useState(false);
 
   async function handleLogin() {
     setLoading(true); setError(null);
@@ -94,6 +98,52 @@ export default function LoginScreen({ onLogin, onIrARegistro }: Props) {
           <Text style={styles.outlineTxt}>Crear cuenta ciudadana</Text>
         </TouchableOpacity>
 
+        {/* Configuración del servidor */}
+        <TouchableOpacity style={styles.configToggle} onPress={() => setShowConfig(v => !v)} activeOpacity={0.7}>
+          <Ionicons name={showConfig ? 'settings' : 'settings-outline'} size={16} color={colors.textMutedLight} />
+          <Text style={styles.configToggleTxt}>Servidor: {serverUrl.replace(/^https?:\/\//, '').substring(0, 28)}...</Text>
+        </TouchableOpacity>
+
+        {showConfig && (
+          <View style={styles.configCard}>
+            <TextInput
+              style={styles.configInput}
+              value={serverUrl}
+              onChangeText={setServerUrl}
+              placeholder="http://192.168.1.50:3000"
+              placeholderTextColor={colors.textMutedLight}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            <View style={styles.configRow}>
+              <TouchableOpacity
+                style={styles.configTestBtn}
+                onPress={async () => {
+                  setProbandoUrl(true);
+                  const ok = await testConnection(serverUrl.replace(/\/+$/, ''));
+                  setProbandoUrl(false);
+                  Alert.alert(ok ? 'Conexión exitosa' : 'Sin respuesta', ok
+                    ? `El servidor responde correctamente.`
+                    : `No se pudo contactar. Verifica la URL y que el backend esté corriendo.`);
+                }}
+                disabled={probandoUrl}
+              >
+                {probandoUrl ? <ActivityIndicator size="small" color={colors.navy} /> : <Text style={styles.configTestTxt}>Probar</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.configSaveBtn}
+                onPress={async () => {
+                  await persistApiBase(serverUrl.replace(/\/+$/, ''));
+                  setShowConfig(false);
+                }}
+              >
+                <Text style={styles.configSaveTxt}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         <Text style={styles.footer}>Protección comunitaria en transporte urbano</Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -129,5 +179,14 @@ const styles = StyleSheet.create({
   quickTxt: { color: colors.textLight, fontWeight: '700', fontSize: 13 },
   outlineBtn: { borderWidth: 1.5, borderColor: colors.navyBorder, borderRadius: radius.md, paddingVertical: 17, alignItems: 'center', marginTop: 14 },
   outlineTxt: { color: colors.white, fontWeight: '700', fontSize: 15 },
-  footer: { color: colors.textMutedLight, textAlign: 'center', fontSize: 13, marginTop: 22 },
+  footer: { color: colors.textMutedLight, textAlign: 'center', fontSize: 13, marginTop: 18 },
+  configToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 18 },
+  configToggleTxt: { color: colors.textMutedLight, fontSize: 12 },
+  configCard: { backgroundColor: colors.navyCardAlt, borderRadius: radius.sm, padding: 14, marginTop: 10, gap: 10 },
+  configInput: { backgroundColor: colors.navyBorder, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, color: colors.white, fontSize: 14 },
+  configRow: { flexDirection: 'row', gap: 10 },
+  configTestBtn: { flex: 1, backgroundColor: colors.yellow, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  configTestTxt: { color: colors.navy, fontWeight: '800', fontSize: 13 },
+  configSaveBtn: { flex: 1, backgroundColor: colors.blue, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  configSaveTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
 });
