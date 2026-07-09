@@ -7,6 +7,9 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+// Filtro global: uniforma TODOS los errores en un JSON consistente
+// { statusCode, path, timestamp, message } para que la app movil
+// siempre reciba el mismo formato de error.
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {

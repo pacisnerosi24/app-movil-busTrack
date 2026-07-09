@@ -1,33 +1,20 @@
-import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
 import MainTabs from './src/navigation/MainTabs';
 import { AppProvider } from './src/AppContext';
 import { Usuario } from './src/api';
-import { initApiBase } from './src/config';
-import { colors } from './src/theme';
 
 type Sesion = { token: string; usuario: Usuario } | null;
 
 export default function App() {
   const [sesion, setSesion] = useState<Sesion>(null);
-  const [configReady, setConfigReady] = useState(false);
+  const [authScreen, setAuthScreen] = useState<'login' | 'registro'>('login');
 
-  useEffect(() => {
-    initApiBase().finally(() => setConfigReady(true));
-  }, []);
-
-  if (!configReady) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.yellow} />
-        <Text style={styles.loadingText}>Cargando configuración...</Text>
-      </View>
-    );
-  }
+  const entrar = (token: string, usuario: Usuario) => setSesion({ token, usuario });
 
   return (
     <SafeAreaProvider>
@@ -38,14 +25,11 @@ export default function App() {
             <MainTabs />
           </NavigationContainer>
         </AppProvider>
+      ) : authScreen === 'login' ? (
+        <LoginScreen onLogin={entrar} onIrARegistro={() => setAuthScreen('registro')} />
       ) : (
-        <LoginScreen onLogin={(token, usuario) => setSesion({ token, usuario })} />
+        <RegisterScreen onRegistrado={entrar} onVolver={() => setAuthScreen('login')} />
       )}
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingText: { color: colors.textMutedLight, fontSize: 15 },
-});

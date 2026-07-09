@@ -17,11 +17,13 @@ import { JwtStrategy } from './infraestructura/adaptadores-entrada/guards/jwt.st
   imports: [
     TypeOrmModule.forFeature([UsuarioOrmEntity]),
     PassportModule,
+    // Configuracion dinamica del JWT desde el .env
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const secret = configService.get<string>('JWT_SECRET');
+        // Usa JWT_EXPIRES_IN del .env (ej. 7d).
         const expiresIn = configService.get<string>('JWT_EXPIRES_IN', '7d');
 
         return {
@@ -41,11 +43,8 @@ import { JwtStrategy } from './infraestructura/adaptadores-entrada/guards/jwt.st
     LoginService,
     JwtStrategy,
   ],
-  exports: [
-    JwtModule,
-    PassportModule,
-    JwtStrategy,
-    TOKEN_PROVIDER,
-  ],
+  // Se exportan para que otros modulos (logistica, seguridad) reutilicen
+  // los guards JWT y validen el token en sus endpoints protegidos.
+  exports: [JwtModule, PassportModule, JwtStrategy, TOKEN_PROVIDER],
 })
 export class IdentidadModule {}

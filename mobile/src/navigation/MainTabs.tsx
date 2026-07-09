@@ -13,7 +13,7 @@ const Tab = createBottomTabNavigator();
 function TabIcon({ focused, name }: { focused: boolean; name: any }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      <Ionicons name={name} size={22} color={focused ? colors.navy : colors.textMutedDark} />
+      <Ionicons name={name} size={22} color={focused ? colors.white : colors.textMutedDark} />
     </View>
   );
 }
@@ -24,7 +24,7 @@ export default function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.navy,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMutedDark,
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 2 },
         tabBarStyle: styles.tabBar,
@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -3 },
   },
   iconWrap: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  iconWrapActive: { backgroundColor: colors.yellow },
+  iconWrapActive: { backgroundColor: colors.primary },
 });

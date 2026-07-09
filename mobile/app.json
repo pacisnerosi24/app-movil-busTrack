@@ -20,6 +20,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "RutaSegura usa tu ubicación para mostrarte los buses cercanos y rastrear tu viaje en tiempo real."
+        }
+      ]
+    ]
   }
 }

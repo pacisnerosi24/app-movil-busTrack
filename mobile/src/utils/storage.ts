@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Persistencia local sencilla (clave/valor) para la URL del backend.
+// La app la usa para recordar una URL manual (ej. ngrok) entre sesiones.
 const STORAGE_KEYS = {
   API_BASE: '@rutasegura/api_base',
 } as const;

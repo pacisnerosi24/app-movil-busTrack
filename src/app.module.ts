@@ -5,21 +5,25 @@ import { MongooseModule, InjectConnection } from '@nestjs/mongoose';
 import { DataSource } from 'typeorm';
 import { Connection } from 'mongoose';
 
+// Tus módulos internos
 import { IdentidadModule } from './identidad/identidad.module';
 import { LogisticaModule } from './logistica/logistica.module';
 import { SeguridadModule } from './seguridad/seguridad.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-function validateEnv(config: Record<string, string | undefined>): Record<string, string> {
+// Valida al arrancar que existan las variables de entorno criticas.
+// Si falta alguna, la app falla de inmediato con un mensaje claro en
+// vez de romperse mas adelante con un error confuso de conexion.
+function validateEnv(config: Record<string, string | undefined>): Record<string, string | undefined> {
   const required = [
-    'PORT',
     'POSTGRES_HOST',
     'POSTGRES_PORT',
     'POSTGRES_USER',
     'POSTGRES_PASSWORD',
     'POSTGRES_DB',
     'MONGO_URI',
+    'JWT_SECRET',
   ];
 
   const missing = required.filter((key) => !config[key]);
@@ -27,7 +31,7 @@ function validateEnv(config: Record<string, string | undefined>): Record<string,
     throw new Error(`Faltan variables de entorno requeridas: ${missing.join(', ')}`);
   }
 
-  return config as Record<string, string>;
+  return config;
 }
 
 @Module({

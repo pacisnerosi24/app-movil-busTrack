@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import * as os from 'os';
 
+// Devuelve las IPs IPv4 de la maquina (WiFi/ethernet) para mostrarlas al
+// arrancar: asi sabes que direccion poner en la app movil sin adivinar.
 function getLocalIPs(): string[] {
   const interfaces = os.networkInterfaces();
   const ips: string[] = [];
@@ -36,51 +38,29 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   try {
-    const swaggerPkg = require('@nestjs/swagger') as {
-      SwaggerModule: {
-        createDocument: (app: unknown, config: unknown) => unknown;
-        setup: (path: string, app: unknown, document: unknown) => void;
-      };
-      DocumentBuilder: new () => {
-        setTitle: (title: string) => any;
-        setDescription: (description: string) => any;
-        setVersion: (version: string) => any;
-        addBearerAuth: () => any;
-        build: () => unknown;
-      };
-    };
-
+    const swaggerPkg = require('@nestjs/swagger') as any;
     const swaggerConfig = new swaggerPkg.DocumentBuilder()
       .setTitle('TransitLive API')
       .setDescription('Documentacion de endpoints principales del backend')
       .setVersion('1.0.0')
       .addBearerAuth()
       .build();
-
-    const swaggerDocument = swaggerPkg.SwaggerModule.createDocument(
-      app,
-      swaggerConfig,
-    );
+    const swaggerDocument = swaggerPkg.SwaggerModule.createDocument(app, swaggerConfig);
     swaggerPkg.SwaggerModule.setup('api/docs', app, swaggerDocument);
-  } catch {
-    // Swagger es opcional cuando no hay acceso al registro para instalar dependencias.
-  }
+  } catch {}
 
   const port = configService.get<number>('PORT') ?? 3000;
   await app.listen(port);
 
-  // Mostrar info de red para la app movil
   const localIPs = getLocalIPs();
   logger.log('='.repeat(56));
   logger.log(`  Servidor corriendo en: http://localhost:${port}`);
-  if (localIPs.length > 0) {
-    localIPs.forEach((ip) => {
-      logger.log(`  Acceso local (WiFi):   http://${ip}:${port}`);
-    });
-  }
+  localIPs.forEach((ip) => {
+    logger.log(`  Acceso local (WiFi):   http://${ip}:${port}`);
+  });
   logger.log('  Para acceso remoto (feria/demo):');
-  logger.log('    ngrok http ' + port);
-  logger.log('    Luego copia la URL HTTPS en Ajustes de la app movil');
+  logger.log(`    ngrok http ${port}`);
+  logger.log('    Luego pega la URL HTTPS en Ajustes de la app móvil');
   logger.log('='.repeat(56));
 }
 bootstrap();
