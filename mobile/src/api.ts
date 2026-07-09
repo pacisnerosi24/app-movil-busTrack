@@ -3,6 +3,25 @@ import { API_BASE } from './config';
 export type Usuario = { id: string; email: string; rol: string };
 export type LoginResp = { token: string; usuario: Usuario };
 
+export type Rol = 'conductor' | 'pasajero';
+export type RegistroResp = { mensaje: string; usuario: Usuario };
+
+// Registra un usuario nuevo (POST /api/auth/registro).
+export async function registrar(email: string, password: string, rol: Rol): Promise<RegistroResp> {
+  const r = await fetch(`${API_BASE}/api/auth/registro`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, rol }),
+  });
+  const data = await r.json();
+  if (!r.ok) {
+    // NestJS devuelve los errores de validación como arreglo.
+    const msg = Array.isArray(data?.message) ? data.message[0] : data?.message;
+    throw new Error(msg ?? 'No se pudo crear la cuenta');
+  }
+  return data as RegistroResp;
+}
+
 export async function login(email: string, password: string): Promise<LoginResp> {
   const r = await fetch(`${API_BASE}/api/auth/login`, {
     method: 'POST',
