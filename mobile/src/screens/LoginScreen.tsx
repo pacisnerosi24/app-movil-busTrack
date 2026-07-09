@@ -7,9 +7,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { login, Usuario } from '../api';
 import { colors, radius } from '../theme';
 
-type Props = { onLogin: (token: string, usuario: Usuario) => void };
+type Props = {
+  onLogin: (token: string, usuario: Usuario) => void;
+  onIrARegistro: () => void;
+};
 
-export default function LoginScreen({ onLogin }: Props) {
+export default function LoginScreen({ onLogin, onIrARegistro }: Props) {
   const [email, setEmail] = useState('conductor1@bustrack.com');
   const [password, setPassword] = useState('Test1234!');
   const [verPass, setVerPass] = useState(false);
@@ -75,7 +78,7 @@ export default function LoginScreen({ onLogin }: Props) {
 
         {/* Botón principal */}
         <TouchableOpacity style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color={colors.navy} /> : <Text style={styles.primaryTxt}>Iniciar viaje seguro</Text>}
+          {loading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryTxt}>Iniciar viaje seguro</Text>}
         </TouchableOpacity>
 
         {/* Acceso rápido */}
@@ -87,7 +90,7 @@ export default function LoginScreen({ onLogin }: Props) {
         </View>
 
         {/* Crear cuenta */}
-        <TouchableOpacity style={styles.outlineBtn} onPress={() => setError('El registro ciudadano estará disponible pronto.')}>
+        <TouchableOpacity style={styles.outlineBtn} onPress={onIrARegistro}>
           <Text style={styles.outlineTxt}>Crear cuenta ciudadana</Text>
         </TouchableOpacity>
 
@@ -118,8 +121,8 @@ const styles = StyleSheet.create({
   inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.navyCard, borderRadius: radius.md, paddingHorizontal: 18, marginBottom: 14 },
   input: { paddingVertical: 18, color: colors.white, fontSize: 16 },
   error: { color: '#FCA5A5', marginBottom: 12, fontSize: 13 },
-  primaryBtn: { backgroundColor: colors.yellow, borderRadius: radius.md, paddingVertical: 18, alignItems: 'center', marginTop: 4 },
-  primaryTxt: { color: colors.navy, fontWeight: '800', fontSize: 17 },
+  primaryBtn: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 18, alignItems: 'center', marginTop: 4 },
+  primaryTxt: { color: colors.white, fontWeight: '800', fontSize: 17 },
   quickLabel: { color: colors.textMutedLight, textAlign: 'center', fontWeight: '700', fontSize: 13, marginTop: 22, marginBottom: 12 },
   quickRow: { flexDirection: 'row', gap: 12 },
   quickBtn: { flex: 1, backgroundColor: colors.navyCard, borderRadius: radius.md, paddingVertical: 18, alignItems: 'center', gap: 4 },
