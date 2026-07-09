@@ -1,16 +1,21 @@
-// Paleta y tokens de diseño de RutaSegura (extraídos del Figma).
+// Paleta y tokens de diseño de RutaSegura.
+// Identidad: AZUL transporte (Ecuador) como color principal + AMARILLO de acento.
 export const colors = {
-  // Fondos oscuros (Login / selección de ruta)
-  navy: '#0E1B2E',
-  navyCard: '#182A40',
-  navyCardAlt: '#1E2E45',
-  navyBorder: '#2A3D57',
+  // Fondos oscuros azul-navy (Login / selección de ruta)
+  navy: '#0B1B33',
+  navyCard: '#15294A',
+  navyCardAlt: '#1B345C',
+  navyBorder: '#274063',
 
   // Fondos claros (Mapa / Reportes)
   lightBg: '#EAF0F7',
   white: '#FFFFFF',
 
-  // Marca
+  // Color principal (botones, tabs activos, marca)
+  primary: '#0A5CA8',
+  primaryLight: '#57A5E0', // para enlaces/acentos sobre fondo oscuro
+
+  // Acento (Ecuador) — realces puntuales
   yellow: '#F3C13A',
 
   // Texto
