@@ -1,10 +1,31 @@
-// mobile/src/config.ts
-// Base URL del backend NestJS.
-//
-// IMPORTANTE: el celular NO puede usar "localhost" (eso apunta al propio
-// teléfono). Debe apuntar a la IP de la PC donde corre el backend, dentro
-// de la misma red WiFi. Si tu IP cambia, actualiza este valor.
-export const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.2:3000';
+import { loadApiBase, saveApiBase } from './utils/storage';
 
-// ID de bus por defecto para la demo.
-export const DEFAULT_BUS_ID = 'BUS-001';
+const DEFAULT_API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.2:3000';
+
+let cachedApiBase: string = DEFAULT_API_BASE;
+
+export function getApiBase(): string {
+  return cachedApiBase;
+}
+
+export function setApiBase(url: string): void {
+  const trimmed = url.replace(/\/+$/, '');
+  cachedApiBase = trimmed;
+}
+
+export async function initApiBase(): Promise<string> {
+  const stored = await loadApiBase();
+  if (stored) {
+    cachedApiBase = stored;
+  }
+  return cachedApiBase;
+}
+
+export async function persistApiBase(url: string): Promise<void> {
+  setApiBase(url);
+  await saveApiBase(url);
+}
+
+export function getDefaultApiBase(): string {
+  return DEFAULT_API_BASE;
+}

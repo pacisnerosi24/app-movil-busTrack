@@ -1,5 +1,3 @@
-// HTML del mapa en vivo dentro del WebView: Leaflet + socket.io desde CDN.
-// Se suscribe al evento "bus_<idBus>" que emite el RastreoGateway del backend.
 export function buildMapHtml(apiBase: string, idBus: string, color: string): string {
   return `<!DOCTYPE html>
 <html lang="es">
@@ -32,7 +30,7 @@ export function buildMapHtml(apiBase: string, idBus: string, color: string): str
 
     var socket = io('${apiBase}', { transports: ['websocket', 'polling'] });
     socket.on('connect', function () { post({ type: 'ws', connected: true }); });
-    socket.on('disconnect', function () { post({ type: 'ws', connected: false }); });
+    socket.on('disconnect', function () { post({ type: 'ws', disconnected: true }); });
     socket.on('bus_${idBus}', function (p) {
       marker.setLatLng([p.latitud, p.longitud]);
       trail.addLatLng([p.latitud, p.longitud]);

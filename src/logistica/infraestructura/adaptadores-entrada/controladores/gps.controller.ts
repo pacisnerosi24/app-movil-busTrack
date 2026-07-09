@@ -20,7 +20,6 @@ export class GpsController {
     return { mensaje: 'Ubicación actualizada correctamente' };
   }
 
-  // NUEVO ENDPOINT GET: Recibe el ID del bus por la URL
   @Get('ubicacion/:idBus')
   async obtenerUbicacion(@Param('idBus') idBus: string) {
     return await this.obtenerUbicacionService.ejecutar(idBus);

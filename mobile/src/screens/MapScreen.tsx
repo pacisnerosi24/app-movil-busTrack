@@ -5,12 +5,11 @@ import { WebView } from 'react-native-webview';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { enviarUbicacion } from '../api';
 import { buildMapHtml } from '../mapHtml';
-import { API_BASE } from '../config';
 import { useApp } from '../AppContext';
 import { colors, radius } from '../theme';
 
 export default function MapScreen({ navigation }: any) {
-  const { token, rutaSeleccionada } = useApp();
+  const { token, rutaSeleccionada, apiBase } = useApp();
   const [simulando, setSimulando] = useState(false);
   const [wsOk, setWsOk] = useState(false);
   const [enVivo, setEnVivo] = useState(false);
@@ -66,7 +65,7 @@ export default function MapScreen({ navigation }: any) {
       <WebView
         style={StyleSheet.absoluteFill}
         originWhitelist={['*']}
-        source={{ html: buildMapHtml(API_BASE, ruta.idBus, ruta.color) }}
+        source={{ html: buildMapHtml(apiBase, ruta.idBus, ruta.color) }}
         onMessage={(e) => onMessage(e.nativeEvent.data)}
         javaScriptEnabled
         domStorageEnabled
@@ -77,15 +76,13 @@ export default function MapScreen({ navigation }: any) {
         )}
       />
 
-      {/* Pill "En camino" */}
       <SafeAreaView edges={['top']} style={styles.topOverlay} pointerEvents="box-none">
         <View style={styles.pill}>
           <View style={[styles.pillDot, { backgroundColor: enVivo ? colors.green : colors.textMutedDark }]} />
-          <Text style={styles.pillTxt}>{enVivo ? 'En camino' : wsOk ? 'Esperando GPS…' : 'Conectando…'}</Text>
+          <Text style={styles.pillTxt}>{enVivo ? 'En camino' : wsOk ? 'Esperando GPS...' : 'Conectando...'}</Text>
         </View>
       </SafeAreaView>
 
-      {/* Tarjeta inferior */}
       <View style={styles.card}>
         <View style={{ flex: 1 }}>
           <View style={styles.cardHeader}>
@@ -96,12 +93,11 @@ export default function MapScreen({ navigation }: any) {
               <Text style={[styles.cambiarTxt, { color: ruta.color }]}>Cambiar</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.etaLabel}>Llegará en:</Text>
+          <Text style={styles.etaLabel}>Llegara en:</Text>
           <Text style={styles.eta}>{ruta.minutos} min</Text>
           <View style={styles.tag}><Text style={styles.tagTxt}>{ruta.tipoBus}</Text></View>
         </View>
 
-        {/* Botón simular (el ícono naranja del bus) */}
         <TouchableOpacity
           style={[styles.busBtn, { backgroundColor: simulando ? colors.red : ruta.color }]}
           onPress={toggleSim}

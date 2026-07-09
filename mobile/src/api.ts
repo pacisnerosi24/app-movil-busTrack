@@ -1,10 +1,11 @@
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 
 export type Usuario = { id: string; email: string; rol: string };
 export type LoginResp = { token: string; usuario: Usuario };
 
 export async function login(email: string, password: string): Promise<LoginResp> {
-  const r = await fetch(`${API_BASE}/api/auth/login`, {
+  const base = getApiBase();
+  const r = await fetch(`${base}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -16,14 +17,14 @@ export async function login(email: string, password: string): Promise<LoginResp>
   return data as LoginResp;
 }
 
-// Envía una ubicación GPS (endpoint protegido con JWT).
 export async function enviarUbicacion(
   token: string,
   idBus: string,
   latitud: number,
   longitud: number,
 ): Promise<void> {
-  const r = await fetch(`${API_BASE}/api/gps/ubicacion`, {
+  const base = getApiBase();
+  const r = await fetch(`${base}/api/gps/ubicacion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ idBus, latitud, longitud }),
@@ -36,11 +37,9 @@ export async function enviarUbicacion(
 
 export type AlertaResp = { mensaje: string; alertaId: string; esCritica: boolean };
 
-// Dispara una alerta de emergencia (endpoint real del módulo seguridad).
-// El backend solo acepta PANICO_MANUAL / IA_ACUSTICO, así que la demo envía
-// PANICO_MANUAL para cualquier tipo de incidente reportado.
 export async function dispararAlerta(token: string, idBus: string): Promise<AlertaResp> {
-  const r = await fetch(`${API_BASE}/api/emergencias/alerta`, {
+  const base = getApiBase();
+  const r = await fetch(`${base}/api/emergencias/alerta`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ idBus, tipo: 'PANICO_MANUAL' }),
@@ -48,4 +47,18 @@ export async function dispararAlerta(token: string, idBus: string): Promise<Aler
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d?.message ?? `Error ${r.status} enviando alerta`);
   return d as AlertaResp;
+}
+
+export async function testConnection(baseUrl: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'test', password: 'test' }),
+    });
+    await r.json();
+    return r.status !== 502 && r.status !== 503 && r.status !== 404;
+  } catch {
+    return false;
+  }
 }

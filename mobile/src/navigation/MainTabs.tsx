@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeStack from './HomeStack';
 import SosScreen from '../screens/SosScreen';
 import ReportsScreen from '../screens/ReportsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import { colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
@@ -34,7 +35,6 @@ export default function MainTabs() {
         name="Inicio"
         component={HomeStack}
         options={({ route }) => {
-          // Oculta la barra en la pantalla de selección de ruta (pantalla completa)
           const r = getFocusedRouteNameFromRoute(route) ?? 'SeleccionRuta';
           return {
             tabBarStyle: r === 'SeleccionRuta' ? { display: 'none' } : styles.tabBar,
@@ -51,6 +51,11 @@ export default function MainTabs() {
         name="Reportes"
         component={ReportsScreen}
         options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} name={focused ? 'menu' : 'reorder-three-outline'} /> }}
+      />
+      <Tab.Screen
+        name="Ajustes"
+        component={SettingsScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} name={focused ? 'settings' : 'settings-outline'} /> }}
       />
     </Tab.Navigator>
   );

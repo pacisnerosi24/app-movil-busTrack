@@ -5,16 +5,37 @@ import { MongooseModule, InjectConnection } from '@nestjs/mongoose';
 import { DataSource } from 'typeorm';
 import { Connection } from 'mongoose';
 
-// Tus módulos internos
 import { IdentidadModule } from './identidad/identidad.module';
 import { LogisticaModule } from './logistica/logistica.module';
 import { SeguridadModule } from './seguridad/seguridad.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+function validateEnv(config: Record<string, string | undefined>): Record<string, string> {
+  const required = [
+    'PORT',
+    'POSTGRES_HOST',
+    'POSTGRES_PORT',
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD',
+    'POSTGRES_DB',
+    'MONGO_URI',
+  ];
+
+  const missing = required.filter((key) => !config[key]);
+  if (missing.length > 0) {
+    throw new Error(`Faltan variables de entorno requeridas: ${missing.join(', ')}`);
+  }
+
+  return config as Record<string, string>;
+}
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateEnv,
     }),
 
     // Configuración de PostgreSQL
@@ -24,7 +45,7 @@ import { SeguridadModule } from './seguridad/seguridad.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         host: configService.get<string>('POSTGRES_HOST'),
-        port: configService.get<number>('POSTGRES_PORT'),
+        port: Number(configService.get<string>('POSTGRES_PORT')),
         username: configService.get<string>('POSTGRES_USER'),
         password: configService.get<string>('POSTGRES_PASSWORD'),
         database: configService.get<string>('POSTGRES_DB'),
@@ -46,8 +67,8 @@ import { SeguridadModule } from './seguridad/seguridad.module';
     LogisticaModule,
     SeguridadModule,
   ],
-  controllers: [],
-  providers: [],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule implements OnApplicationBootstrap {
   // Instanciamos el logger nativo de NestJS

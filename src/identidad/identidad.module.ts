@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { UsuarioOrmEntity } from './infraestructura/adaptadores-salida/persistencia/postgres/usuario.orm-entity';
@@ -17,24 +17,35 @@ import { JwtStrategy } from './infraestructura/adaptadores-entrada/guards/jwt.st
   imports: [
     TypeOrmModule.forFeature([UsuarioOrmEntity]),
     PassportModule,
-    //Configuracion dinamica JWT (.env)
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRACION') as any},
-      }),
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const secret = configService.get<string>('JWT_SECRET');
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN', '7d');
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: expiresIn as NonNullable<JwtModuleOptions['signOptions']>['expiresIn'],
+          },
+        };
+      },
     }),
   ],
-  
-    controllers: [AuthController],
+  controllers: [AuthController],
   providers: [
     { provide: USUARIO_REPOSITORY, useClass: PostgresUsuarioRepository },
-    { provide: TOKEN_PROVIDER, useClass: JwtAdapterService},
+    { provide: TOKEN_PROVIDER, useClass: JwtAdapterService },
     RegistrarUsuarioService,
     LoginService,
     JwtStrategy,
+  ],
+  exports: [
+    JwtModule,
+    PassportModule,
+    JwtStrategy,
+    TOKEN_PROVIDER,
   ],
 })
 export class IdentidadModule {}
