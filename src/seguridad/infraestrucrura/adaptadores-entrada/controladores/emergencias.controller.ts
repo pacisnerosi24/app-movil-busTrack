@@ -1,28 +1,36 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import 'multer';
 import { DispararAlertaService } from '../../../aplicacion/casos-uso/disparar-alerta.service';
 import { CrearAlertaDto } from '../dto/crear-alerta.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '@nestjs/passport'; // Asumiendo que ya tienes JWT configurado
 
 @Controller('api/emergencias')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt')) // Descomenta esto cuando quieras proteger la ruta de nuevo
 export class EmergenciasController {
   constructor(private readonly dispararAlertaService: DispararAlertaService) {}
 
   @Post('alerta')
   @HttpCode(HttpStatus.CREATED)
-  async reportarEmergencia(@Body() body: CrearAlertaDto) {
+  // FileInterceptor('audio') indica que NestJS debe buscar un archivo adjunto llamado "audio"
+  @UseInterceptors(FileInterceptor('audio'))
+  async reportarEmergencia(
+    @Body() body: CrearAlertaDto,
+    @UploadedFile() audio?: Express.Multer.File, // Este objeto contiene el Buffer y el nombre del archivo
+  ) {
     const alerta = await this.dispararAlertaService.ejecutar(
       body.idBus, 
       body.tipo, 
-      body.decibeles
+      audio?.buffer,
+      audio?.originalname
     );
     
     return {
-      mensaje: alerta.esAmenazaCritica() 
-        ? 'Alerta crítica registrada. Policía notificada.' 
-        : 'Falsa alarma. Ruido descartado.',
+      mensaje: alerta.activa 
+        ? 'Alerta crítica registrada y verificada por IA. Policía notificada.' 
+        : 'Falsa alarma. Ruido descartado por la IA.',
       alertaId: alerta.id,
-      esCritica: alerta.esAmenazaCritica()
+      esCritica: alerta.activa
     };
   }
 }

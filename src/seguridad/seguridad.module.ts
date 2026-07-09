@@ -5,6 +5,8 @@ import { ALERTA_REPOSITORY } from './aplicacion/puertos/alerta.repository.interf
 import { PostgresAlertaRepository } from './infraestrucrura/adaptadores-salida/persistencia/postgres/postgres-alerta.repository';
 import { DispararAlertaService } from './aplicacion/casos-uso/disparar-alerta.service';
 import { EmergenciasController } from './infraestrucrura/adaptadores-entrada/controladores/emergencias.controller';
+import { ANALIZADOR_IA_PORT } from './aplicacion/puertos/analizador-ia.interface';
+import { FastApiAnalizadorService } from './infraestrucrura/adaptadores-salida/ia/fastapi-analizador.service';
 
 @Module({
   imports: [
@@ -16,6 +18,10 @@ import { EmergenciasController } from './infraestrucrura/adaptadores-entrada/con
     {
       provide: ALERTA_REPOSITORY,
       useClass: PostgresAlertaRepository,
+    },
+    {
+      provide: ANALIZADOR_IA_PORT,
+      useClass: FastApiAnalizadorService
     },
     DispararAlertaService,
   ],
