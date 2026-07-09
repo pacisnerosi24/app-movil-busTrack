@@ -5,8 +5,10 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  // Health check: la app movil (pantalla de Ajustes) lo usa para
+  // verificar que la URL del backend responde antes de guardarla.
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  estado() {
+    return this.appService.estado();
   }
 }

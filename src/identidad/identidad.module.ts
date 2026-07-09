@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { UsuarioOrmEntity } from './infraestructura/adaptadores-salida/persistencia/postgres/usuario.orm-entity';
@@ -17,24 +17,34 @@ import { JwtStrategy } from './infraestructura/adaptadores-entrada/guards/jwt.st
   imports: [
     TypeOrmModule.forFeature([UsuarioOrmEntity]),
     PassportModule,
-    //Configuracion dinamica JWT (.env)
+    // Configuracion dinamica del JWT desde el .env
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRACION') as any},
-      }),
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const secret = configService.get<string>('JWT_SECRET');
+        // Se conserva el nombre de variable del equipo: JWT_EXPIRACION (ej. 3600s).
+        const expiresIn = configService.get<string>('JWT_EXPIRACION', '7d');
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: expiresIn as NonNullable<JwtModuleOptions['signOptions']>['expiresIn'],
+          },
+        };
+      },
     }),
   ],
-  
-    controllers: [AuthController],
+  controllers: [AuthController],
   providers: [
     { provide: USUARIO_REPOSITORY, useClass: PostgresUsuarioRepository },
-    { provide: TOKEN_PROVIDER, useClass: JwtAdapterService},
+    { provide: TOKEN_PROVIDER, useClass: JwtAdapterService },
     RegistrarUsuarioService,
     LoginService,
     JwtStrategy,
   ],
+  // Se exportan para que otros modulos (logistica, seguridad) reutilicen
+  // los guards JWT y validen el token en sus endpoints protegidos.
+  exports: [JwtModule, PassportModule, JwtStrategy, TOKEN_PROVIDER],
 })
 export class IdentidadModule {}

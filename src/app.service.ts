@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
+  // Estado del backend (health check) que consume la app movil.
+  estado() {
+    return {
+      servicio: 'RutaSegura API',
+      estado: 'ok',
+      timestamp: new Date().toISOString(),
+    };
   }
 }
