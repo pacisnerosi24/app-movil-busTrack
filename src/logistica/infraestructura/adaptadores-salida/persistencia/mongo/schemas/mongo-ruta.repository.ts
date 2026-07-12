@@ -27,4 +27,11 @@ export class MongoRutaRepository implements IRutaRepository {
   async eliminarRutaPorBus(idBus: string): Promise<void> {
     await this.rutaModel.deleteMany({ idBus }).exec();
   }
+
+  async obtenerTodasLasRutas(): Promise<Ruta[]> {
+    const documentos = await this.rutaModel.find().exec();
+    
+    // Mapeamos los documentos de MongoDB a la Entidad de Dominio
+    return documentos.map(doc => new Ruta(doc.idBus, doc.destinoFinal, doc.activa));
+  }
 }

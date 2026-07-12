@@ -13,6 +13,7 @@ import { RutaMongo, RutaSchema } from './infraestructura/adaptadores-salida/pers
 import { RUTA_REPOSITORY } from './aplicacion/puertos/ruta.repository.interface';
 import { MongoRutaRepository } from './infraestructura/adaptadores-salida/persistencia/mongo/schemas/mongo-ruta.repository';
 import { RegistrarRutaService } from './aplicacion/casos-uso/registrar-ruta.service';
+import { ListarRutasService } from './aplicacion/casos-uso/listar-rutas.service';
 
 @Module({
   imports: [
@@ -41,8 +42,8 @@ import { RegistrarRutaService } from './aplicacion/casos-uso/registrar-ruta.serv
     ActualizarUbicacionService,
     ObtenerUbicacionService,
     EliminarUbicacionesService,
-    // Agregamos el caso de uso de la ruta
     RegistrarRutaService,
+    ListarRutasService,
   ],
 })
 export class LogisticaModule {}

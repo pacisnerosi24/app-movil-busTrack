@@ -6,6 +6,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { EliminarUbicacionesService } from '../../../aplicacion/casos-uso/eliminar-ubicaciones.service';
 import { RegistrarRutaDto } from '../dto/registrar-ruta.dto';
 import { RegistrarRutaService } from '../../../../logistica/aplicacion/casos-uso/registrar-ruta.service';
+import { ListarRutasService } from '../../../aplicacion/casos-uso/listar-rutas.service';
 
 @Controller('api/gps')
 @UseGuards(AuthGuard('jwt'))
@@ -16,6 +17,7 @@ export class GpsController {
     private readonly obtenerUbicacionService: ObtenerUbicacionService,
     private readonly eliminarUbicacionesService: EliminarUbicacionesService,
     private readonly registrarRutaService: RegistrarRutaService,
+    private readonly listarRutasService: ListarRutasService,
   ) {}
 
   @Post('ubicacion')
@@ -44,5 +46,10 @@ export class GpsController {
   async registrarDestinoRuta(@Body() body: RegistrarRutaDto): Promise<{ mensaje: string }> {
     await this.registrarRutaService.ejecutar(body.idBus, body.destinoFinal);
     return { mensaje: 'Destino de ruta registrado correctamente' };
+  }
+
+  @Get('rutas')
+  async listarTodasLasRutas() {
+    return await this.listarRutasService.ejecutar();
   }
 }
