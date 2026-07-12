@@ -8,14 +8,21 @@ import { ObtenerUbicacionService } from './aplicacion/casos-uso/obtener-ubicacio
 import { GpsController } from './infraestructura/adaptadores-entrada/controladores/gps.controller';
 import { NOTIFICADOR_UBICACION } from './aplicacion/puertos/notificador-ubicacion.interface';
 import { RastreoGateway } from './infraestructura/adaptadores-salida/websockets/rastreo.gateway';
-
+import { EliminarUbicacionesService } from './aplicacion/casos-uso/eliminar-ubicaciones.service';
+import { RutaMongo, RutaSchema } from './infraestructura/adaptadores-salida/persistencia/mongo/schemas/ruta.schema';
+import { RUTA_REPOSITORY } from './aplicacion/puertos/ruta.repository.interface';
+import { MongoRutaRepository } from './infraestructura/adaptadores-salida/persistencia/mongo/schemas/mongo-ruta.repository';
+import { RegistrarRutaService } from './aplicacion/casos-uso/registrar-ruta.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: UbicacionMongo.name, schema: UbicacionSchema }]),
+    MongooseModule.forFeature([
+      { name: UbicacionMongo.name, schema: UbicacionSchema },
+      { name: RutaMongo.name, schema: RutaSchema }
+    ]),
   ],
   controllers: [
-    GpsController, // <-- Registramos nuestro nuevo controlador aquí
+    GpsController, 
   ],
   providers: [
     {
@@ -26,8 +33,16 @@ import { RastreoGateway } from './infraestructura/adaptadores-salida/websockets/
       provide: NOTIFICADOR_UBICACION,
       useClass: RastreoGateway,
     },
+    // Agregamos el repositorio de la ruta
+    {
+      provide: RUTA_REPOSITORY,
+      useClass: MongoRutaRepository,
+    },
     ActualizarUbicacionService,
     ObtenerUbicacionService,
+    EliminarUbicacionesService,
+    // Agregamos el caso de uso de la ruta
+    RegistrarRutaService,
   ],
 })
 export class LogisticaModule {}

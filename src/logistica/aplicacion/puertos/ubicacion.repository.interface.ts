@@ -6,4 +6,5 @@ export const UBICACION_REPOSITORY = Symbol('UBICACION_REPOSITORY');
 export interface IUbicacionRepository {
   guardarUbicacion(bus: Bus): Promise<void>;
   obtenerUltimaUbicacion(idBus: string): Promise<Bus | null>;
+  eliminarUbicacionesPorBus(idBus: string): Promise<boolean>;
 }

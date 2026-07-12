@@ -14,13 +14,17 @@ export class MongoUbicacionRepository implements IUbicacionRepository {
 
   async guardarUbicacion(bus: Bus): Promise<void> {
     // Mapeamos de Dominio (Bus) a Infraestructura (Mongo)
-    const nuevaUbicacion = new this.ubicacionModel({
-      idBus: bus.idBus,
-      latitud: bus.ubicacionActual.latitud,
-      longitud: bus.ubicacionActual.longitud,
-      fechaRegistro: bus.ultimaActualizacion,
-    });
-    await nuevaUbicacion.save();
+    await this.ubicacionModel.findOneAndUpdate(
+      { idBus: bus.idBus },
+      {
+        $set: {
+          latitud: bus.ubicacionActual.latitud,
+          longitud: bus.ubicacionActual.longitud,
+          fechaRegistro: bus.ultimaActualizacion,
+        }
+      },
+      { upsert: true, returnDocument: 'after' }
+    ).exec();
   }
 
   async obtenerUltimaUbicacion(idBus: string): Promise<Bus | null> {
@@ -29,5 +33,10 @@ export class MongoUbicacionRepository implements IUbicacionRepository {
     
     // Mapeamos de Infraestructura (Mongo) a Dominio (Bus)
     return new Bus(doc.idBus, new CoordenadaGps(doc.latitud, doc.longitud), doc.fechaRegistro);
+  }
+
+  async eliminarUbicacionesPorBus(idBus: string): Promise<boolean> {
+    const resultado = await this.ubicacionModel.deleteMany({ idBus }).exec();
+    return resultado.deletedCount > 0;
   }
 }
