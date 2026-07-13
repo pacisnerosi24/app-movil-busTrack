@@ -21,6 +21,17 @@ export default function MapScreen({ navigation }: any) {
   const [transmisiones, setTransmisiones] = useState(0);
   const txBusy = useRef(false);
 
+  // Modo conductor tipo Uber: entra "fuera de servicio" y arranca la transmisión
+  // GPS solo al tocar "Iniciar viaje". inicioMs marca el arranque; ahoraMs tick.
+  const [enViaje, setEnViaje] = useState(false);
+  const [inicioMs, setInicioMs] = useState<number | null>(null);
+  const [ahoraMs, setAhoraMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enViaje) return;
+    const t = setInterval(() => setAhoraMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [enViaje]);
+
   // Sentido del recorrido: ida (origen→destino) o vuelta (destino→origen).
   // Si la ruta no define pathVuelta, la vuelta usa la ida invertida.
   const [sentido, setSentido] = useState<'ida' | 'vuelta'>('ida');
@@ -81,8 +92,10 @@ export default function MapScreen({ navigation }: any) {
   useEffect(() => {
     if (!road || !userLoc) return;
     if (esConductor) {
+      // El bus siempre sigue tu punto (te ves en el mapa), pero solo se
+      // TRANSMITE al backend cuando iniciaste el viaje (en servicio).
       webRef.current?.injectJavaScript(`window.__setBus && window.__setBus(${userLoc.lat}, ${userLoc.lng}); true;`);
-      if (!txBusy.current) {
+      if (enViaje && !txBusy.current) {
         txBusy.current = true;
         enviarUbicacion(token, ruta!.idBus, userLoc.lat, userLoc.lng)
           .then(() => setTransmisiones(n => n + 1))
@@ -92,7 +105,7 @@ export default function MapScreen({ navigation }: any) {
     } else {
       webRef.current?.injectJavaScript(`window.__setUser && window.__setUser(${userLoc.lat}, ${userLoc.lng}); true;`);
     }
-  }, [userLoc?.lat, userLoc?.lng, road, esConductor]);
+  }, [userLoc?.lat, userLoc?.lng, road, esConductor, enViaje]);
 
   // ETA total con tráfico: duración real (o mock) × factor de tráfico.
   const etaTotal = useMemo(() => {
@@ -128,6 +141,8 @@ export default function MapScreen({ navigation }: any) {
   // Se reinicia al cambiar de ruta o sentido.
   const [paradaSelIdx, setParadaSelIdx] = useState<number | null>(null);
   useEffect(() => { setParadaSelIdx(null); }, [ruta?.id, sentido]);
+  // Cambiar de ruta o de sentido termina el viaje en curso (es un viaje nuevo).
+  useEffect(() => { setEnViaje(false); setInicioMs(null); setTransmisiones(0); }, [ruta?.id, sentido]);
 
   const paradaActiva = useMemo(() => {
     if (esConductor || !paradasRoad.length) return null;
@@ -147,6 +162,25 @@ export default function MapScreen({ navigation }: any) {
     return metrosEntre(paradaActiva.pos, [userLoc.lat, userLoc.lng]);
   }, [paradaActiva, userLoc?.lat, userLoc?.lng]);
   const minCaminando = distParada != null ? Math.max(1, Math.ceil(distParada / 75)) : null; // ~75 m/min
+
+  // Conductor: próxima parada por delante (la primera parada más adelante en la ruta).
+  const proximaParada = useMemo(() => {
+    if (!esConductor || !road || !userLoc || !paradasRoad.length) return null;
+    const pr = proyectar(road.coords, metrics.cum, [userLoc.lat, userLoc.lng]);
+    let best: typeof paradasRoad[number] | null = null, bestRem = Infinity;
+    for (const p of paradasRoad) {
+      const rem = p.alongM - pr.alongM;
+      if (rem > 0 && rem < bestRem) { bestRem = rem; best = p; }
+    }
+    return best;
+  }, [esConductor, road, userLoc?.lat, userLoc?.lng, paradasRoad, metrics]);
+
+  // Cronómetro del viaje (segundos) y formato mm:ss.
+  const duracionSeg = inicioMs != null ? Math.max(0, Math.floor((ahoraMs - inicioMs) / 1000)) : 0;
+  const duracionTxt = `${Math.floor(duracionSeg / 60)}:${String(duracionSeg % 60).padStart(2, '0')}`;
+
+  function iniciarViaje() { setInicioMs(Date.now()); setTransmisiones(0); setEnViaje(true); }
+  function finalizarViaje() { setEnViaje(false); }
 
   // Dibuja "Tu parada" (la elegida por el usuario, o la más cercana a él).
   useEffect(() => {
@@ -342,22 +376,56 @@ export default function MapScreen({ navigation }: any) {
         </View>
 
         {esConductor ? (
-          <View style={styles.infoRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.etaLabel}>Transmitiendo tu GPS como el bus</Text>
-              <View style={styles.etaRow}>
-                <Text style={[styles.eta, { color: colors.red }]}>En vivo</Text>
+          !enViaje ? (
+            // Fuera de servicio: aún no transmite. Botón grande para arrancar.
+            <>
+              <View style={styles.condEstado}>
+                <View style={[styles.condDot, { backgroundColor: colors.textMutedDark }]} />
+                <Text style={styles.condEstadoTxt}>Fuera de servicio</Text>
+              </View>
+              <Text style={styles.condSub}>
+                Vas a conducir hacia {destinoActual}. Al iniciar, tu ubicación se compartirá en vivo con los pasajeros.
+              </Text>
+              <TouchableOpacity style={[styles.viajeBtn, { backgroundColor: colors.green }]} onPress={iniciarViaje} activeOpacity={0.85}>
+                <Ionicons name="play" size={20} color="#fff" />
+                <Text style={styles.viajeBtnTxt}>Iniciar viaje</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            // En viaje: transmitiendo. Cronómetro + próxima parada + finalizar.
+            <>
+              <View style={styles.infoRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.condEstado}>
+                    <View style={[styles.condDot, { backgroundColor: colors.green }]} />
+                    <Text style={[styles.condEstadoTxt, { color: colors.green }]} numberOfLines={1}>En viaje hacia {destinoActual}</Text>
+                  </View>
+                  <View style={styles.etaRow}>
+                    <Text style={[styles.eta, { color: colors.textDark }]}>{duracionTxt}</Text>
+                  </View>
+                  <Text style={styles.condCrono}>tiempo en ruta</Text>
+                </View>
+                <View style={styles.liveBadge}>
+                  <MaterialCommunityIcons name="broadcast" size={22} color="#fff" />
+                  <Text style={styles.liveTxt}>LIVE</Text>
+                </View>
               </View>
               <View style={styles.proxRow}>
-                <Ionicons name="cloud-upload" size={14} color={colors.green} />
+                <Ionicons name="location" size={16} color={ruta.color} />
+                <Text style={styles.proxTxt} numberOfLines={1}>
+                  {proximaParada ? `Próxima parada: ${proximaParada.nombre}` : 'En ruta'}
+                </Text>
+              </View>
+              <View style={styles.proxRow}>
+                <Ionicons name="cloud-upload" size={15} color={colors.green} />
                 <Text style={styles.proxTxt} numberOfLines={1}>{transmisiones} ubicaciones enviadas</Text>
               </View>
-            </View>
-            <View style={styles.liveBadge}>
-              <MaterialCommunityIcons name="broadcast" size={22} color="#fff" />
-              <Text style={styles.liveTxt}>LIVE</Text>
-            </View>
-          </View>
+              <TouchableOpacity style={[styles.viajeBtn, { backgroundColor: colors.red, marginTop: 14 }]} onPress={finalizarViaje} activeOpacity={0.85}>
+                <Ionicons name="stop" size={18} color="#fff" />
+                <Text style={styles.viajeBtnTxt}>Finalizar viaje</Text>
+              </TouchableOpacity>
+            </>
+          )
         ) : userLoc ? (
           <>
             <View style={styles.etaHead}>
@@ -441,6 +509,13 @@ const styles = StyleSheet.create({
   proxTxt: { color: colors.textDark, fontSize: 15, flex: 1, fontWeight: '500' },
   liveBadge: { backgroundColor: colors.red, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center', gap: 2 },
   liveTxt: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 1 },
+  condEstado: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 },
+  condDot: { width: 10, height: 10, borderRadius: 5 },
+  condEstadoTxt: { color: colors.textMutedDark, fontSize: 15, fontWeight: '800' },
+  condSub: { color: colors.textMutedDark, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  condCrono: { color: colors.textMutedDark, fontSize: 14, fontWeight: '600', marginTop: 2 },
+  viajeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 16, borderRadius: radius.md, marginTop: 16 },
+  viajeBtnTxt: { color: '#fff', fontWeight: '900', fontSize: 17 },
   empty: { flex: 1, backgroundColor: colors.lightBg, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 30 },
   emptyTxt: { color: colors.textMutedDark, fontSize: 16, fontWeight: '600' },
   emptyBtn: { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: radius.md },
