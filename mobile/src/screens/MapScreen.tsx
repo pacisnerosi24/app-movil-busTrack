@@ -100,13 +100,20 @@ export default function MapScreen({ navigation }: any) {
     return Math.max(1, Math.round(base * trafico.factor));
   }, [road, trafico, ruta?.minutos]);
 
-  const paradas: Parada[] = useMemo(
-    () => (ruta ? anchoredPath.map((pos, i) => ({ pos, nombre: nombresBase[i] })) : []),
-    [ruta?.id, anchoredPath, nombresBase],
-  );
-
   // Métricas de la ruta y proyección del pasajero (para el ETA hacia él).
   const metrics = useMemo(() => distanciasAcumuladas(road?.coords ?? []), [road]);
+
+  const paradas: Parada[] = useMemo(() => {
+    if (!ruta) return [];
+    const base = anchoredPath.map((pos, i) => ({ pos, nombre: nombresBase[i] }));
+    // Pega cada parada al trazado REAL de calles: así nunca queda fuera de la
+    // ruta (el waypoint del mock puede caer sobre un parque/lote, no sobre la vía).
+    if (!road) return base;
+    return base.map((p) => {
+      const pr = proyectar(road.coords, metrics.cum, p.pos);
+      return { pos: road.coords[pr.idx] ?? p.pos, nombre: p.nombre };
+    });
+  }, [ruta?.id, anchoredPath, nombresBase, road, metrics]);
   const speedMps = road && road.durationSec > 0 ? road.distanceM / road.durationSec : 5;
   // Cada PARADA de la ruta con su posición sobre el trazado real (para el ETA).
   const paradasRoad = useMemo(() => {
@@ -193,11 +200,12 @@ export default function MapScreen({ navigation }: any) {
     setSiguiendo(true);
   }
   // Centra el mapa en TU ubicación (y reafirma el punto por si el mapa recargó).
+  // "Mi ubicación": vuelve a la vista de entrada (tú + el bus más cercano).
   function centrarEnMi() {
     if (!userLoc) return;
     webRef.current?.injectJavaScript(
       `window.__setUser && window.__setUser(${userLoc.lat}, ${userLoc.lng});` +
-      `window.__recenterMe && window.__recenterMe(); true;`,
+      `window.__fitMeBus && window.__fitMeBus(${userLoc.lat}, ${userLoc.lng}); true;`,
     );
     setSiguiendo(false);
   }
@@ -410,8 +418,8 @@ const styles = StyleSheet.create({
   chipTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
   warn: { alignSelf: 'flex-start', backgroundColor: colors.orange, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginTop: 8 },
   warnTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  fabCol: { position: 'absolute', right: 16, bottom: 215, alignItems: 'flex-end', gap: 10 },
-  fab: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fabCol: { position: 'absolute', right: 16, bottom: 270, alignItems: 'flex-end', gap: 10 },
+  fab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 165, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   fabTxt: { fontWeight: '800', fontSize: 13 },
   cardWrap: { position: 'absolute', left: 0, right: 0, bottom: 16, paddingHorizontal: 14, alignItems: 'center' },
   card: { width: '100%', maxWidth: 440, backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
