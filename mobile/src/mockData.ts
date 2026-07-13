@@ -16,12 +16,18 @@ export type Ruta = {
   paradas: number;
   tipoBus: string;
   color: string;
-  // Geometría de la ruta: primer punto = origen, último = destino.
+  // Geometría de la IDA: primer punto = origen, último = destino.
   path: LatLng[];
   nombresParadas: string[];
+  // Geometría de la VUELTA (opcional). Si no se define, la vuelta usa la ida
+  // invertida. Aquí se puede poner un recorrido de retorno por otras calles.
+  pathVuelta?: LatLng[];
+  nombresParadasVuelta?: string[];
   // Ruta real (coordenadas verdaderas): NO se traslada a la zona del usuario.
   real?: boolean;
 };
+
+export type Sentido = 'ida' | 'vuelta';
 
 export const RUTAS: Ruta[] = [
   {

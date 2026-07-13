@@ -21,6 +21,22 @@ export default function MapScreen({ navigation }: any) {
   const [transmisiones, setTransmisiones] = useState(0);
   const txBusy = useRef(false);
 
+  // Sentido del recorrido: ida (origen→destino) o vuelta (destino→origen).
+  // Si la ruta no define pathVuelta, la vuelta usa la ida invertida.
+  const [sentido, setSentido] = useState<'ida' | 'vuelta'>('ida');
+  const pathBase = useMemo<[number, number][]>(() => {
+    if (!ruta) return [];
+    if (sentido === 'ida') return ruta.path;
+    return ruta.pathVuelta ?? [...ruta.path].reverse();
+  }, [ruta?.id, sentido]);
+  const nombresBase = useMemo<string[]>(() => {
+    if (!ruta) return [];
+    if (sentido === 'ida') return ruta.nombresParadas;
+    return ruta.nombresParadasVuelta ?? [...ruta.nombresParadas].reverse();
+  }, [ruta?.id, sentido]);
+  // Hacia dónde va el bus en el sentido actual (para mostrarlo claro al usuario).
+  const destinoActual = sentido === 'ida' ? (ruta?.destino ?? '') : (ruta?.origen ?? '');
+
   // Ancla la ruta UNA vez a la primera ubicación conocida (no en cada
   // movimiento) para no recargar el mapa mientras te mueves.
   const [anchor, setAnchor] = useState<{ lat: number; lng: number } | null>(null);
@@ -34,14 +50,14 @@ export default function MapScreen({ navigation }: any) {
   // (excepto las rutas reales, que conservan sus coordenadas verdaderas).
   const anchoredPath = useMemo(() => {
     if (!ruta) return [] as [number, number][];
-    if (ruta.real || !anchor) return ruta.path;
-    const n = ruta.path.length;
-    const cLat = ruta.path.reduce((s, p) => s + p[0], 0) / n;
-    const cLng = ruta.path.reduce((s, p) => s + p[1], 0) / n;
+    if (ruta.real || !anchor) return pathBase;
+    const n = pathBase.length;
+    const cLat = pathBase.reduce((s, p) => s + p[0], 0) / n;
+    const cLng = pathBase.reduce((s, p) => s + p[1], 0) / n;
     const dLat = anchor.lat - cLat;
     const dLng = anchor.lng - cLng;
-    return ruta.path.map(([la, ln]) => [la + dLat, ln + dLng] as [number, number]);
-  }, [ruta?.id, anchor]);
+    return pathBase.map(([la, ln]) => [la + dLat, ln + dLng] as [number, number]);
+  }, [ruta?.id, anchor, pathBase]);
 
   const webRef = useRef<WebView>(null);
   const [road, setRoad] = useState<RoadRoute | null>(null);
@@ -89,8 +105,8 @@ export default function MapScreen({ navigation }: any) {
   }, [road, trafico, ruta?.minutos]);
 
   const paradas: Parada[] = useMemo(
-    () => (ruta ? anchoredPath.map((pos, i) => ({ pos, nombre: ruta.nombresParadas[i] })) : []),
-    [ruta?.id, anchoredPath],
+    () => (ruta ? anchoredPath.map((pos, i) => ({ pos, nombre: nombresBase[i] })) : []),
+    [ruta?.id, anchoredPath, nombresBase],
   );
 
   // Métricas de la ruta y proyección del pasajero (para el ETA hacia él).
@@ -209,7 +225,7 @@ export default function MapScreen({ navigation }: any) {
   return (
     <View style={styles.root}>
       <WebView
-        key={`${ruta.id}-${road.snapped}-${anchor ? 'u' : 'd'}`}
+        key={`${ruta.id}-${sentido}-${road.snapped}-${anchor ? 'u' : 'd'}`}
         ref={webRef}
         style={StyleSheet.absoluteFill}
         originWhitelist={['*']}
@@ -224,19 +240,28 @@ export default function MapScreen({ navigation }: any) {
       <SafeAreaView edges={['top']} style={styles.topOverlay} pointerEvents="box-none">
         <View style={styles.topRow}>
           <View style={styles.pill}>
+            <Ionicons name="bus" size={14} color="#fff" />
             {esConductor ? (
-              <>
-                <View style={[styles.pillDot, { backgroundColor: colors.red }]} />
-                <Text style={styles.pillTxt}>En servicio</Text>
-              </>
+              <Text style={styles.pillTxt} numberOfLines={1}>Conduces a {destinoActual}</Text>
             ) : (
               <>
+                <Text style={styles.pillTxt} numberOfLines={1}>{llego ? `Llegó a ${destinoActual}` : moviendo ? `En camino a ${destinoActual}` : `Saliendo a ${destinoActual}`}</Text>
                 <View style={[styles.pillDot, { backgroundColor: moviendo ? colors.green : llego ? colors.orange : colors.textMutedDark }]} />
-                <Text style={styles.pillTxt}>{llego ? 'Llegó a destino' : moviendo ? 'En camino' : 'Iniciando…'}</Text>
               </>
             )}
           </View>
 
+          {/* Selector por DESTINO (más intuitivo que "ida/vuelta") */}
+          <View style={styles.segment}>
+            <TouchableOpacity style={[styles.segBtn, sentido === 'ida' && { backgroundColor: ruta.color }]} onPress={() => setSentido('ida')} activeOpacity={0.85}>
+              <Ionicons name="arrow-forward" size={12} color={sentido === 'ida' ? '#fff' : colors.textMutedDark} />
+              <Text style={[styles.segTxt, sentido === 'ida' && styles.segTxtActive]} numberOfLines={1}>{ruta.destino}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.segBtn, sentido === 'vuelta' && { backgroundColor: ruta.color }]} onPress={() => setSentido('vuelta')} activeOpacity={0.85}>
+              <Ionicons name="arrow-forward" size={12} color={sentido === 'vuelta' ? '#fff' : colors.textMutedDark} />
+              <Text style={[styles.segTxt, sentido === 'vuelta' && styles.segTxtActive]} numberOfLines={1}>{ruta.origen}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {!road.snapped && (
@@ -332,6 +357,10 @@ const styles = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.textDark, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
   pillDot: { width: 9, height: 9, borderRadius: 5 },
   pillTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  segment: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 999, padding: 3, gap: 2, shadowColor: '#1B2B4B', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  segBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999 },
+  segTxt: { fontWeight: '800', fontSize: 12.5, color: colors.textMutedDark },
+  segTxtActive: { color: '#fff' },
   chips: { gap: 8, alignItems: 'flex-end' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.textDark, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
   chipTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
