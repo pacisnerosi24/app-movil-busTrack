@@ -35,13 +35,13 @@ export function buildMapHtml(
   <style>
     html, body, #map { height: 100%; margin: 0; background: #EAEEF2; }
     .leaflet-control-attribution { font-size: 9px; opacity: .5; }
-    /* Bus estilo Uber: puck circular centrado, encima de la línea */
-    .bus-halo { width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-      background:${color}22; }
+    /* Bus estilo Uber/Moovit: círculo de color con ícono de bus blanco (SVG) */
+    .bus-halo { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background:${color}2E; }
     .bus-pin { display:flex; align-items:center; justify-content:center;
-      width:44px; height:44px; border-radius:50%; background:${color};
-      border:4px solid #fff; box-shadow:0 3px 10px rgba(0,0,0,.4); }
-    .bus-pin span { font-size:21px; line-height:21px; }
+      width:38px; height:38px; border-radius:50%; background:${color};
+      border:3px solid #fff; box-shadow:0 3px 10px rgba(0,0,0,.4); }
+    .bus-pin svg { width:21px; height:21px; fill:#fff; }
     /* Flechas de dirección sobre la ruta (hacia dónde va el bus) */
     .arrow { color:${color}; font-size:15px; line-height:15px; font-weight:900;
       text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
@@ -110,7 +110,7 @@ export function buildMapHtml(
     };
 
     var encuadre = USER ? ROUTE.concat([[USER.lat, USER.lng]]) : ROUTE;
-    map.fitBounds(encuadre, { padding: [70, 70] });
+    map.fitBounds(encuadre, { paddingTopLeft:[40, 100], paddingBottomRight:[40, 240] });
 
     // Cámara que sigue al bus, pero suelta el control cuando el usuario
     // arrastra o hace zoom (estilo Uber). Se recupera con el botón recentrar.
@@ -123,7 +123,7 @@ export function buildMapHtml(
     map.on('zoomstart', soltar);
     window.__recenter = function(){
       following = true;
-      map.setView(bus.getLatLng(), map.getZoom(), { animate: true });
+      if (buses[0]) map.setView(buses[0].marker.getLatLng(), map.getZoom(), { animate: true });
       post({ type:'follow', following:true });
     };
     // Centra la cámara en TU ubicación (suelta el seguimiento del bus).
@@ -134,15 +134,32 @@ export function buildMapHtml(
       post({ type:'follow', following:false });
     };
     // Encuadre general: aleja hasta ver TU ubicación + toda la ruta (vista de entrada).
+    // Deja hueco ARRIBA (píldora/selector) y ABAJO (tarjeta + botones) para que
+    // la ruta quede centrada en la zona visible y no se corte bajo esos elementos.
     window.__fitAll = function(la, ln){
       following = false;
       var pts = (la != null && ln != null) ? ROUTE.concat([[la, ln]]) : ROUTE.slice();
-      map.fitBounds(pts, { padding:[55,55] });
+      map.fitBounds(pts, { paddingTopLeft:[40, 100], paddingBottomRight:[40, 240] });
+      post({ type:'follow', following:false });
+    };
+    // Vista de entrada útil: TÚ + el bus más cercano a ti (más acercado que
+    // toda la ruta, que puede cruzar media ciudad).
+    window.__fitMeBus = function(la, ln){
+      following = false;
+      if (la == null || ln == null) { window.__fitAll(); return; }
+      var best = null, bestD = Infinity;
+      for (var b = 0; b < buses.length; b++) {
+        var f = fracDe(buses[b].phase), p = pointAt(f);
+        var d = dist([p.la, p.ln], [la, ln]);
+        if (d < bestD) { bestD = d; best = [p.la, p.ln]; }
+      }
+      var pts = best ? [[la, ln], best] : [[la, ln]];
+      map.fitBounds(pts, { paddingTopLeft:[55, 115], paddingBottomRight:[55, 255], maxZoom:16 });
       post({ type:'follow', following:false });
     };
 
-    // Ruta completa (tenue) + tramo recorrido (sólido)
-    L.polyline(ROUTE, { color: COLOR, weight: 5, opacity: .3 }).addTo(map);
+    // Línea de la ruta (el "traveled" se usa solo en modo conductor).
+    L.polyline(ROUTE, { color: COLOR, weight: 6, opacity: .55, lineCap: 'round' }).addTo(map);
     var traveled = L.polyline([], { color: COLOR, weight: 6, opacity: .95, lineCap: 'round' }).addTo(map);
 
     // Flechas repartidas a lo largo de la ruta que apuntan en el sentido de avance.
@@ -169,10 +186,17 @@ export function buildMapHtml(
       }
     });
 
-    // Puck centrado sobre la posición (iconAnchor al centro) -> el bus va
-    // ENCIMA de la línea, como el carro de Uber.
-    var busIcon = L.divIcon({ className:'', html:'<div class="bus-halo"><div class="bus-pin"><span>🚌</span></div></div>', iconSize:[56,56], iconAnchor:[28,28] });
-    var bus = L.marker(ROUTE[0], { icon: busIcon, zIndexOffset: 1000 }).addTo(map);
+    // Uno o varios buses en la ruta. Rutas largas => más buses, separados
+    // uniformemente, para que SIEMPRE haya alguno en camino (más real).
+    // El conductor usa 1 (su GPS real).
+    var BUS_SVG = '<svg viewBox="0 0 24 24"><path d="M4 16V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-1 1.7V19a1 1 0 0 1-2 0v-1H7v1a1 1 0 0 1-2 0v-1.3A2 2 0 0 1 4 16Zm2-9v5h12V7H6Zm1.5 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>';
+    function nuevoBusIcon(){ return L.divIcon({ className:'', html:'<div class="bus-halo"><div class="bus-pin">'+BUS_SVG+'</div></div>', iconSize:[52,52], iconAnchor:[26,26] }); }
+    var NBUS = (MODO === 'pasajero') ? Math.max(1, Math.min(3, Math.round(MIN / 12))) : 1;
+    var buses = [];
+    for (var bi = 0; bi < NBUS; bi++) {
+      buses.push({ marker: L.marker(ROUTE[0], { icon: nuevoBusIcon(), zIndexOffset: 1000 }).addTo(map),
+                   phase: bi / NBUS, frac: 0, la: ROUTE[0][0], ln: ROUTE[0][1] });
+    }
 
     // Distancias acumuladas (velocidad constante a lo largo de la ruta real)
     function dist(a,b){ var dx=a[0]-b[0], dy=a[1]-b[1]; return Math.sqrt(dx*dx+dy*dy); }
@@ -211,56 +235,42 @@ export function buildMapHtml(
     socket.on('connect', function(){ post({ type:'ws', connected:true }); });
     socket.on('disconnect', function(){ post({ type:'ws', connected:false }); });
 
-    // El bus NO arranca siempre en el origen: empieza en el punto que le toca
-    // según la hora real dentro de su ciclo (como si ya llevara rato en ruta).
-    var elapsedInicial = DUR > 0 ? (Date.now() % DUR) : 0;
-    var startTs=null, elapsedBase=elapsedInicial, playing=true, arrived=false, prevLL=ROUTE[0];
-    function frame(ts){
-      if (startTs===null) startTs=ts;
-      if (playing){
-        var elapsed=elapsedBase+(ts-startTs);
-        var frac=Math.min(1, elapsed/DUR);
-        lastFrac=frac;
-        var p=pointAt(frac);
-        bus.setLatLng([p.la,p.ln]);
-        traveled.setLatLngs(ROUTE.slice(0,p.seg).concat([[p.la,p.ln]]));
-        if (following) map.panTo([p.la,p.ln], { animate:false });
+    // Posición (0..1) de un bus según su fase y la HORA real: los buses no
+    // arrancan en el origen y avanzan solos, cíclicamente.
+    function fracDe(phase){ return DUR > 0 ? (((Date.now() / DUR) + phase) % 1) : 0; }
 
-        var eta=Math.max(0, Math.ceil(MIN*(1-frac)));
-        post({ type:'progress', frac:frac, eta:eta, prox:proxParada(frac*total), arrived:frac>=1, lat:p.la, lng:p.ln });
-
-        var now=Date.now();
-        if (now-lastGps>1500){ lastGps=now; post({ type:'gps', lat:p.la, lng:p.ln }); }
-
-        if (frac>=1 && !arrived){ arrived=true;
-          setTimeout(function(){ elapsedBase=0; startTs=null; arrived=false; traveled.setLatLngs([]); }, 2600);
-        }
-      } else { startTs=ts; }
+    function frame(){
+      var lista = [], nearIdx = 0, nearD = Infinity;
+      for (var b = 0; b < buses.length; b++){
+        var f = fracDe(buses[b].phase);
+        var p = pointAt(f);
+        buses[b].marker.setLatLng([p.la, p.ln]);
+        buses[b].frac = f; buses[b].la = p.la; buses[b].ln = p.ln;
+        lista.push({ frac:f, lat:p.la, lng:p.ln });
+        if (USER){ var d = dist([p.la,p.ln],[USER.lat,USER.lng]); if (d < nearD){ nearD = d; nearIdx = b; } }
+      }
+      var pr = buses[nearIdx];
+      if (following) map.panTo([pr.la, pr.ln], { animate:false });
+      post({ type:'progress', buses:lista, prox: proxParada(pr.frac*total) });
+      var now = Date.now();
+      if (now-lastGps>1500){ lastGps=now; post({ type:'gps', lat:pr.la, lng:pr.ln }); }
       requestAnimationFrame(frame);
     }
-    // Solo el pasajero corre la simulación; el conductor mueve el bus con su GPS real.
+    // Solo el pasajero corre la simulación; el conductor mueve su bus con GPS real.
     if (MODO === 'pasajero') {
       requestAnimationFrame(frame);
     } else if (USER) {
-      bus.setLatLng([USER.lat, USER.lng]);
+      buses[0].marker.setLatLng([USER.lat, USER.lng]);
     }
 
     // Modo conductor: el bus = ubicación real del conductor (enviada desde RN).
     var condTrail = [];
     window.__setBus = function(la, ln){
-      bus.setLatLng([la, ln]);
+      buses[0].marker.setLatLng([la, ln]);
       condTrail.push([la, ln]);
       traveled.setLatLngs(condTrail);
       if (following) map.panTo([la, ln], { animate: false });
     };
-
-    window.__cmd=function(a){
-      if (a==='pause') playing=false;
-      else if (a==='play') playing=true;
-      else if (a==='restart'){ elapsedBase=0; startTs=null; arrived=false; traveled.setLatLngs([]); playing=true; }
-    };
-    // Cambia la velocidad en vivo conservando la posición actual del bus.
-    window.__setSpeed=function(s){ SPEED=s; DUR=BASE/SPEED; elapsedBase=lastFrac*DUR; startTs=null; };
   </script>
 </body>
 </html>`;

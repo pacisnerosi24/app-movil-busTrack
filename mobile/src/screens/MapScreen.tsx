@@ -62,8 +62,6 @@ export default function MapScreen({ navigation }: any) {
   const webRef = useRef<WebView>(null);
   const [road, setRoad] = useState<RoadRoute | null>(null);
   const [trafico] = useState<Trafico>(() => getTraficoAhora());
-  const [eta, setEta] = useState(ruta?.minutos ?? 0);
-  const [frac, setFrac] = useState(0);
   const [prox, setProx] = useState(ruta?.origen ?? '');
   const [moviendo, setMoviendo] = useState(false);
   const [siguiendo, setSiguiendo] = useState(true);
@@ -134,8 +132,8 @@ export default function MapScreen({ navigation }: any) {
     if (esConductor) {
       if (userLoc) webRef.current?.injectJavaScript(`window.__setBus && window.__setBus(${userLoc.lat}, ${userLoc.lng}); true;`);
     } else if (userLoc) {
-      // Muestra tu punto y aleja hasta ver tu ubicación + toda la ruta.
-      webRef.current?.injectJavaScript(`window.__setUser && window.__setUser(${userLoc.lat}, ${userLoc.lng}); window.__fitAll && window.__fitAll(${userLoc.lat}, ${userLoc.lng}); true;`);
+      // Muestra tu punto y encuadra a TU ubicación + el bus más cercano a ti.
+      webRef.current?.injectJavaScript(`window.__setUser && window.__setUser(${userLoc.lat}, ${userLoc.lng}); window.__fitMeBus && window.__fitMeBus(${userLoc.lat}, ${userLoc.lng}); true;`);
     } else {
       webRef.current?.injectJavaScript(`window.__fitAll && window.__fitAll(); true;`);
     }
@@ -183,15 +181,21 @@ export default function MapScreen({ navigation }: any) {
     try {
       const m = JSON.parse(raw);
       if (m.type === 'progress') {
-        setEta(m.eta); setFrac(m.frac); setProx(m.prox);
-        setMoviendo(m.frac > 0 && m.frac < 1);
-        // ETA y distancia del bus hacia el pasajero.
-        if (proj && metrics.total > 0 && userLoc) {
-          const busAlong = m.frac * metrics.total;
-          // Distancia que le falta al bus para llegar a tu parada (con vuelta si ya pasó).
-          const rem = (((proj.alongM - busAlong) % metrics.total) + metrics.total) % metrics.total;
-          setEtaMe(Math.max(0, Math.ceil(rem / speedMps / 60)));
-          setDistMe(metrosEntre([m.lat, m.lng], [userLoc.lat, userLoc.lng]));
+        setProx(m.prox);
+        setMoviendo(true);
+        // Con varios buses: elige el que llega ANTES a tu parada (menor distancia
+        // restante hacia adelante sobre la ruta) y calcula su ETA/distancia.
+        const buses: { frac: number; lat: number; lng: number }[] = m.buses ?? [];
+        if (proj && metrics.total > 0 && userLoc && buses.length) {
+          let best = null as (typeof buses)[number] | null;
+          let bestRem = Infinity;
+          for (const b of buses) {
+            const busAlong = b.frac * metrics.total;
+            const rem = (((proj.alongM - busAlong) % metrics.total) + metrics.total) % metrics.total;
+            if (rem < bestRem) { bestRem = rem; best = b; }
+          }
+          setEtaMe(Math.max(0, Math.ceil(bestRem / speedMps / 60)));
+          if (best) setDistMe(metrosEntre([best.lat, best.lng], [userLoc.lat, userLoc.lng]));
         }
       } else if (m.type === 'follow') {
         setSiguiendo(m.following);
@@ -199,7 +203,8 @@ export default function MapScreen({ navigation }: any) {
     } catch {}
   }
 
-  const llego = frac >= 1;
+  // Con varios buses circulando no hay un único "llegó": siempre hay alguno en camino.
+  const llego = false;
 
   if (!ubicacionLista) {
     return (
@@ -319,7 +324,7 @@ export default function MapScreen({ navigation }: any) {
           ) : (
             <>
               <Text style={styles.etaLabel}>Recorrido de la ruta</Text>
-              <Text style={styles.eta}>{eta} min</Text>
+              <Text style={styles.eta}>{etaTotal} min</Text>
               <View style={styles.proxRow}>
                 <Ionicons name="information-circle-outline" size={13} color={colors.textMutedDark} />
                 <Text style={styles.proxTxt} numberOfLines={1}>
