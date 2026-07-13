@@ -21,7 +21,12 @@ function detectarHost(): string {
     (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
 
   const host = hostUri?.split(':')[0];
-  return host && host !== 'localhost' && host !== '127.0.0.1' ? host : FALLBACK_HOST;
+  if (!host) return FALLBACK_HOST;
+  // En el emulador Android, Expo corre en 127.0.0.1/localhost y ESA es la
+  // dirección correcta al backend (vía `adb reverse tcp:3000`). En un
+  // teléfono físico, hostUri trae la IP de la Mac en la red, que también sirve.
+  if (host === 'localhost') return '127.0.0.1';
+  return host;
 }
 
 // URL por defecto = IP autodetectada de la Mac (misma WiFi).

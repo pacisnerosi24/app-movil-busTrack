@@ -7,6 +7,10 @@ import { getApiBase, initApiBase, setApiBase } from './config';
 export type Coords = { lat: number; lng: number };
 export type UbicStatus = 'idle' | 'loading' | 'ok' | 'denied' | 'error';
 
+// Ubicación de respaldo (centro de Quito) cuando el GPS no entrega un punto
+// —típico en emuladores—. Solo se usa como último recurso para no bloquear la app.
+const UBICACION_DEFECTO: Coords = { lat: -0.1807, lng: -78.4678 };
+
 type AppState = {
   token: string;
   usuario: Usuario;
@@ -68,14 +72,26 @@ export function AppProvider({
       // 1) Posición INMEDIATA para que el marcador aparezca ya mismo.
       //    watchPositionAsync puede tardar en dar el primer punto (o esperar
       //    a que te muevas), así que primero pedimos una lectura directa.
+      let tengoFix = false;
       try {
         const ultima = await Location.getLastKnownPositionAsync();
-        if (ultima) setUserLoc({ lat: ultima.coords.latitude, lng: ultima.coords.longitude });
-        const actual = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setUserLoc({ lat: actual.coords.latitude, lng: actual.coords.longitude });
+        if (ultima) { setUserLoc({ lat: ultima.coords.latitude, lng: ultima.coords.longitude }); tengoFix = true; }
+
+        // getCurrentPositionAsync puede COLGARSE en emuladores sin GPS activo,
+        // así que la corremos contra un timeout de 8s para no quedarnos pegados.
+        const actual = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise<null>((res) => setTimeout(() => res(null), 8000)),
+        ]);
+        if (actual) { setUserLoc({ lat: actual.coords.latitude, lng: actual.coords.longitude }); tengoFix = true; }
       } catch {
         // Si falla la lectura directa, el watch de abajo igual actualizará.
       }
+
+      // Último recurso (típico en emulador sin GPS): usar una ubicación por
+      // defecto para que la app NO se quede en "Detectando…". Si luego llega
+      // un punto real (o un `adb emu geo fix`), el watch de abajo lo reemplaza.
+      if (!tengoFix) setUserLoc(UBICACION_DEFECTO);
 
       // 2) Rastreo en vivo (se actualiza mientras te mueves).
       subRef.current = await Location.watchPositionAsync(
