@@ -148,15 +148,26 @@ export function buildMapHtml(
     // toda la ruta, que puede cruzar media ciudad).
     window.__fitMeBus = function(la, ln){
       following = false;
-      if (la == null || ln == null) { window.__fitAll(); return; }
       var best = null, bestD = Infinity;
       for (var b = 0; b < buses.length; b++) {
         var f = fracDe(buses[b].phase), p = pointAt(f);
         var d = dist([p.la, p.ln], [la, ln]);
         if (d < bestD) { bestD = d; best = [p.la, p.ln]; }
       }
-      var pts = best ? [[la, ln], best] : [[la, ln]];
-      map.fitBounds(pts, { paddingTopLeft:[55, 115], paddingBottomRight:[55, 255], maxZoom:16 });
+      // Sin ubicación: centra en el bus más cercano con zoom fijo.
+      if (la == null || ln == null) {
+        if (best) map.setView(best, 15, { animate:false }); else window.__fitAll();
+        post({ type:'follow', following:false }); return;
+      }
+      if (best) {
+        map.fitBounds([[la, ln], best], { paddingTopLeft:[55, 115], paddingBottomRight:[55, 255], maxZoom:16 });
+        // Tope de alejamiento: si tú y el bus quedan muy lejos (p. ej. la vuelta
+        // va por otro corredor), no te alejes media ciudad; prioriza ver el bus
+        // más cercano con un zoom consistente (misma sensación que la ida).
+        if (map.getZoom() < 13) map.setView(best, 14, { animate:false });
+      } else {
+        map.setView([la, ln], 15, { animate:false });
+      }
       post({ type:'follow', following:false });
     };
 
