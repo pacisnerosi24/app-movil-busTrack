@@ -43,6 +43,14 @@ export const RUTAS: Ruta[] = [
       [-0.2020, -78.4950], [-0.2075, -78.4980], [-0.2110, -78.5000],
     ],
     nombresParadas: ['El Condado', 'Cotocollao', 'La Prensa', 'La Y', 'La Gasca', 'Av. Colón', 'Santa Clara', 'El Ejido', 'Congreso'],
+    // VUELTA (Congreso → El Condado) por un corredor distinto (aprox. Av. América),
+    // no las mismas calles de la ida. Aproximación para la simulación.
+    pathVuelta: [
+      [-0.2110, -78.5000], [-0.2040, -78.5035], [-0.1900, -78.5060],
+      [-0.1750, -78.5055], [-0.1590, -78.5020], [-0.1440, -78.4975],
+      [-0.1230, -78.4910], [-0.1070, -78.4885], [-0.0967, -78.4939],
+    ],
+    nombresParadasVuelta: ['Congreso', 'El Ejido', 'Santa Clara', 'Av. América', 'Mariana de Jesús', 'La Gasca', 'La Y', 'Cotocollao', 'El Condado'],
   },
   {
     id: 'l14', idBus: 'BUS-014', nombre: 'Línea 14', etiqueta: 'Semisótano',
