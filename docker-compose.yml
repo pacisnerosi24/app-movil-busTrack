@@ -50,7 +50,7 @@ services:
       # Magia de Docker: Se conecta a Qdrant por el nombre del contenedor, no por localhost
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_API_KEY=663baaf114e04098a0b44a623843255c0b5b2d652de9e60d2bdb4e1acb4bc079
-      - UMBRAL_CONFIANZA=75.0
+      - UMBRAL_CONFIANZA=85.0
     volumes:
       # MAGIA: Conecta tu carpeta de Windows con la carpeta /app/audios_base dentro de Linux en tiempo real
       - ../servicio-ai-deteccion-sonidos/audios_base:/app/audios_base
