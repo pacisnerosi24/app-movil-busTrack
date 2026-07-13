@@ -42,6 +42,9 @@ export function buildMapHtml(
       width:44px; height:44px; border-radius:50%; background:${color};
       border:4px solid #fff; box-shadow:0 3px 10px rgba(0,0,0,.4); }
     .bus-pin span { font-size:21px; line-height:21px; }
+    /* Flechas de dirección sobre la ruta (hacia dónde va el bus) */
+    .arrow { color:${color}; font-size:15px; line-height:15px; font-weight:900;
+      text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
     /* Contenedor que centra el punto exactamente sobre la coordenada */
     .stop-wrap { width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
     .stop { width:12px; height:12px; border-radius:50%; background:#fff;
@@ -142,6 +145,16 @@ export function buildMapHtml(
     L.polyline(ROUTE, { color: COLOR, weight: 5, opacity: .3 }).addTo(map);
     var traveled = L.polyline([], { color: COLOR, weight: 6, opacity: .95, lineCap: 'round' }).addTo(map);
 
+    // Flechas repartidas a lo largo de la ruta que apuntan en el sentido de avance.
+    var paso = Math.max(1, Math.floor(ROUTE.length / 9));
+    for (var a = paso; a < ROUTE.length - 1; a += paso) {
+      var dLat = ROUTE[a+1][0] - ROUTE[a][0], dLng = ROUTE[a+1][1] - ROUTE[a][1];
+      var deg = Math.atan2(-dLat, dLng) * 180 / Math.PI; // 0 = apunta al este (▶)
+      L.marker(ROUTE[a], { interactive:false, keyboard:false, icon: L.divIcon({
+        className:'', html:'<div class="arrow" style="transform:rotate('+deg+'deg)">▶</div>',
+        iconSize:[16,16], iconAnchor:[8,8] }) }).addTo(map);
+    }
+
     // Paradas
     PARADAS.forEach(function (p, i) {
       var isStart = (i === 0), isEnd = (i === PARADAS.length - 1), terminal = isStart || isEnd;
@@ -198,7 +211,10 @@ export function buildMapHtml(
     socket.on('connect', function(){ post({ type:'ws', connected:true }); });
     socket.on('disconnect', function(){ post({ type:'ws', connected:false }); });
 
-    var startTs=null, elapsedBase=0, playing=true, arrived=false, prevLL=ROUTE[0];
+    // El bus NO arranca siempre en el origen: empieza en el punto que le toca
+    // según la hora real dentro de su ciclo (como si ya llevara rato en ruta).
+    var elapsedInicial = DUR > 0 ? (Date.now() % DUR) : 0;
+    var startTs=null, elapsedBase=elapsedInicial, playing=true, arrived=false, prevLL=ROUTE[0];
     function frame(ts){
       if (startTs===null) startTs=ts;
       if (playing){
