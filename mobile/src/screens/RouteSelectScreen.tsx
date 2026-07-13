@@ -1,14 +1,25 @@
-import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { RUTAS, Ruta } from '../mockData';
 import { useApp } from '../AppContext';
 import { colors, radius } from '../theme';
 
+// Quita tildes y pasa a minúsculas para buscar sin importar acentos.
+const DIACRITICOS = new RegExp('[\\u0300-\\u036f]', 'g');
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(DIACRITICOS, '');
+
 export default function RouteSelectScreen({ navigation }: any) {
-  const { setRutaSeleccionada, userLoc, ubicStatus, seguimiento, esConductor, usuario, iniciarSeguimiento, logout } = useApp();
-  const [sel, setSel] = useState<Ruta | null>(null);
+  const { setRutaSeleccionada, userLoc, ubicStatus, esConductor, usuario, iniciarSeguimiento, logout } = useApp();
+  const [busqueda, setBusqueda] = useState('');
+
+  // Filtra por nombre, etiqueta, origen, destino o tipo de bus.
+  const rutasFiltradas = useMemo(() => {
+    const q = norm(busqueda.trim());
+    if (!q) return RUTAS;
+    return RUTAS.filter(r => norm(`${r.nombre} ${r.etiqueta} ${r.origen} ${r.destino} ${r.tipoBus}`).includes(q));
+  }, [busqueda]);
 
   function confirmarSalir() {
     Alert.alert('Cerrar sesión', '¿Seguro que quieres salir?', [
@@ -22,20 +33,24 @@ export default function RouteSelectScreen({ navigation }: any) {
     if (ubicStatus === 'idle') iniciarSeguimiento();
   }, [ubicStatus]);
 
-  function verMapa() {
-    if (!sel) return;
-    setRutaSeleccionada(sel);
+  // Tocar una ruta entra DIRECTO al mapa (sin paso intermedio de confirmación).
+  function elegirRuta(r: Ruta) {
+    setRutaSeleccionada(r);
     navigation.navigate('Mapa');
   }
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: sel ? 110 : 30 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
         {/* Barra de usuario + cerrar sesión */}
         <View style={styles.userBar}>
           <View style={{ flex: 1 }}>
             <Text style={styles.hola}>Hola,</Text>
             <Text style={styles.email} numberOfLines={1}>{usuario.email}</Text>
+          </View>
+          <View style={[styles.rolBadge, { backgroundColor: esConductor ? colors.orange : colors.blue }]}>
+            <Ionicons name={esConductor ? 'bus' : 'person'} size={12} color="#fff" />
+            <Text style={styles.rolTxt}>{esConductor ? 'CONDUCTOR' : 'PASAJERO'}</Text>
           </View>
           <TouchableOpacity style={styles.salir} onPress={confirmarSalir} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={18} color={colors.textLight} />
@@ -43,19 +58,31 @@ export default function RouteSelectScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.rolRow}>
-          <Text style={styles.step}>PASO 1 DE 1</Text>
-          <View style={[styles.rolBadge, { backgroundColor: esConductor ? colors.orange : colors.blue }]}>
-            <Ionicons name={esConductor ? 'bus' : 'person'} size={12} color="#fff" />
-            <Text style={styles.rolTxt}>{esConductor ? 'CONDUCTOR' : 'PASAJERO'}</Text>
-          </View>
-        </View>
         <Text style={styles.title}>{esConductor ? '¿Qué ruta vas a conducir?' : '¿Qué ruta vas a tomar?'}</Text>
         <Text style={styles.subtitle}>
           {esConductor
-            ? 'Selecciona tu línea: tu GPS será el bus que verán los pasajeros'
-            : 'Selecciona tu línea para ver el mapa en tiempo real'}
+            ? 'Toca tu línea: tu GPS será el bus que verán los pasajeros'
+            : 'Toca tu línea para ver el mapa en tiempo real'}
         </Text>
+
+        {/* Buscador de rutas / buses */}
+        <View style={styles.search}>
+          <Ionicons name="search" size={18} color={colors.textMutedLight} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar ruta, bus o destino…"
+            placeholderTextColor={colors.textMutedLight}
+            value={busqueda}
+            onChangeText={setBusqueda}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {busqueda.length > 0 && (
+            <TouchableOpacity onPress={() => setBusqueda('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={colors.textMutedLight} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Estado de la ubicación del teléfono */}
         <View style={styles.ubic}>
@@ -81,71 +108,49 @@ export default function RouteSelectScreen({ navigation }: any) {
           )}
         </View>
 
-        {RUTAS.map(r => {
-          const activa = sel?.id === r.id;
-          return (
-            <TouchableOpacity
-              key={r.id}
-              activeOpacity={0.85}
-              onPress={() => setSel(activa ? null : r)}
-              style={[styles.card, activa && { borderColor: r.color }]}
-            >
-              <View style={styles.cardTop}>
-                <View style={[styles.icon, { backgroundColor: r.color }]}>
-                  <MaterialCommunityIcons name="bus" size={24} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name}>{r.nombre}</Text>
-                    <View style={[styles.badge, { backgroundColor: r.color + '22' }]}>
-                      <Text style={[styles.badgeTxt, { color: r.color }]}>{r.etiqueta}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.route}>{r.origen}  →  {r.destino}</Text>
-                </View>
-                {activa
-                  ? <View style={[styles.check, { backgroundColor: r.color }]}><Ionicons name="checkmark" size={16} color="#fff" /></View>
-                  : <Ionicons name="chevron-forward" size={20} color={colors.textMutedLight} />}
-              </View>
-
-              <View style={styles.metaRow}>
-                <Meta icon="time-outline" text={`${r.minutos} min`} strong color={activa ? r.color : undefined} />
-                <View style={styles.sep} />
-                <Meta icon="location-outline" text={`${r.paradas} paradas`} />
-                <View style={styles.sep} />
-                <Text style={styles.metaTxt}>{r.tipoBus}</Text>
-              </View>
-
-              {activa && (
-                <View style={styles.progressBlock}>
-                  <View style={styles.progressLine}>
-                    <View style={[styles.dot, { backgroundColor: colors.green }]} />
-                    <View style={[styles.bar, { backgroundColor: r.color }]} />
-                    <View style={[styles.dot, { backgroundColor: colors.red }]} />
-                  </View>
-                  <View style={styles.progressLabels}>
-                    <Text style={[styles.progressTxt, { color: colors.green }]}>{r.origen}</Text>
-                    <Text style={[styles.progressTxt, { color: colors.red }]}>{r.destino}</Text>
-                  </View>
-                </View>
-              )}
+        {rutasFiltradas.length === 0 && (
+          <View style={styles.vacio}>
+            <Ionicons name="bus-outline" size={40} color={colors.textMutedLight} />
+            <Text style={styles.vacioTxt}>Sin resultados para “{busqueda.trim()}”</Text>
+            <TouchableOpacity onPress={() => setBusqueda('')} activeOpacity={0.8}>
+              <Text style={styles.ubicRetry}>Limpiar búsqueda</Text>
             </TouchableOpacity>
-          );
-        })}
+          </View>
+        )}
 
-        <TouchableOpacity style={styles.addBtn} activeOpacity={0.7}>
-          <Ionicons name="add-circle-outline" size={20} color={colors.textMutedLight} />
-          <Text style={styles.addTxt}>Agregar ruta personalizada</Text>
-        </TouchableOpacity>
-      </ScrollView>
+        {rutasFiltradas.map(r => (
+          <TouchableOpacity
+            key={r.id}
+            activeOpacity={0.85}
+            onPress={() => elegirRuta(r)}
+            style={styles.card}
+          >
+            <View style={styles.cardTop}>
+              <View style={[styles.icon, { backgroundColor: r.color }]}>
+                <MaterialCommunityIcons name="bus" size={24} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.name}>{r.nombre}</Text>
+                  <View style={[styles.badge, { backgroundColor: r.color + '22' }]}>
+                    <Text style={[styles.badgeTxt, { color: r.color }]}>{r.etiqueta}</Text>
+                  </View>
+                </View>
+                <Text style={styles.route}>{r.origen}  →  {r.destino}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMutedLight} />
+            </View>
 
-      {sel && (
-        <View style={styles.footer}>
-          <TouchableOpacity style={[styles.verBtn, { backgroundColor: sel.color }]} onPress={verMapa} activeOpacity={0.9}>
-            <Text style={styles.verTxt}>Ver mapa — {sel.nombre}</Text>
+            <View style={styles.metaRow}>
+              <Meta icon="time-outline" text={`${r.minutos} min`} strong />
+              <View style={styles.sep} />
+              <Meta icon="location-outline" text={`${r.paradas} paradas`} />
+              <View style={styles.sep} />
+              <Text style={styles.metaTxt}>{r.tipoBus}</Text>
+            </View>
           </TouchableOpacity>
-        </View>
-      )}
+        ))}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -161,17 +166,19 @@ function Meta({ icon, text, strong, color }: { icon: any; text: string; strong?:
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.navy },
-  userBar: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  userBar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 },
   hola: { color: colors.textMutedLight, fontSize: 13 },
   email: { color: colors.textLight, fontSize: 16, fontWeight: '700' },
   salir: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.navyCard, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: colors.navyBorder },
   salirTxt: { color: colors.textLight, fontWeight: '700', fontSize: 13 },
-  rolRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rolBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  rolBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   rolTxt: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 0.5 },
-  step: { color: colors.yellow, fontWeight: '800', fontSize: 13, letterSpacing: 1 },
-  title: { color: colors.textLight, fontSize: 30, fontWeight: '900', marginTop: 6, letterSpacing: -0.5 },
+  title: { color: colors.textLight, fontSize: 30, fontWeight: '900', marginTop: 2, letterSpacing: -0.5 },
   subtitle: { color: colors.textMutedLight, fontSize: 15, marginTop: 6, marginBottom: 12 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: colors.navyCard, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 4, marginBottom: 12, borderWidth: 1, borderColor: colors.navyBorder },
+  searchInput: { flex: 1, color: colors.textLight, fontSize: 15, fontWeight: '500', paddingVertical: 10 },
+  vacio: { alignItems: 'center', gap: 10, paddingVertical: 40 },
+  vacioTxt: { color: colors.textMutedLight, fontSize: 15, fontWeight: '600' },
   ubic: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.navyCard, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 16, borderWidth: 1, borderColor: colors.navyBorder },
   ubicTxt: { color: colors.textLight, fontSize: 13, fontWeight: '600', flex: 1 },
   ubicRetry: { color: colors.primaryLight, fontWeight: '800', fontSize: 13 },
@@ -184,20 +191,8 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8 },
   badgeTxt: { fontSize: 12, fontWeight: '700' },
   route: { color: colors.textMutedLight, fontSize: 14, marginTop: 3 },
-  check: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 10 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaTxt: { color: colors.textMutedLight, fontSize: 13 },
   sep: { width: 1, height: 14, backgroundColor: colors.navyBorder },
-  progressBlock: { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.navyBorder, paddingTop: 16 },
-  progressLine: { flexDirection: 'row', alignItems: 'center' },
-  dot: { width: 11, height: 11, borderRadius: 6 },
-  bar: { flex: 1, height: 4, borderRadius: 2, marginHorizontal: 4 },
-  progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  progressTxt: { fontSize: 13, fontWeight: '700' },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: colors.navyBorder, borderStyle: 'dashed', borderRadius: radius.lg, paddingVertical: 18, marginTop: 4 },
-  addTxt: { color: colors.textMutedLight, fontSize: 15, fontWeight: '600' },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: colors.navy, borderTopWidth: 1, borderTopColor: colors.navyBorder },
-  verBtn: { borderRadius: radius.md, paddingVertical: 17, alignItems: 'center' },
-  verTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });
