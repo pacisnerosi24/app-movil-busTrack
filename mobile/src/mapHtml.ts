@@ -42,17 +42,25 @@ export function buildMapHtml(
       width:44px; height:44px; border-radius:50%; background:${color};
       border:4px solid #fff; box-shadow:0 3px 10px rgba(0,0,0,.4); }
     .bus-pin span { font-size:21px; line-height:21px; }
-    .stop { width:13px; height:13px; border-radius:50%; background:#fff;
+    /* Contenedor que centra el punto exactamente sobre la coordenada */
+    .stop-wrap { width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
+    .stop { width:12px; height:12px; border-radius:50%; background:#fff;
       border:3px solid ${color}; box-shadow:0 1px 4px rgba(0,0,0,.3); }
-    .stop.end { background:${color}; width:16px; height:16px; }
+    /* Paradas terminales: punto de color sólido (verde origen / rojo destino) */
+    .stop-term { width:17px; height:17px; border-radius:50%; border:3px solid #fff;
+      box-shadow:0 2px 7px rgba(0,0,0,.4); }
     /* Tu ubicación (punto azul estilo Uber/Google) */
     .me { width:20px; height:20px; border-radius:50%; background:#2563EB; border:3px solid #fff;
       box-shadow:0 0 0 7px rgba(37,99,235,.20), 0 2px 6px rgba(0,0,0,.35); }
     /* Tu parada (dónde te recoge el bus) */
     .parada-me { width:16px; height:16px; border-radius:5px; background:#16A34A; border:3px solid #fff;
       box-shadow:0 2px 6px rgba(0,0,0,.35); }
-    .lbl { background:rgba(14,27,46,.92); color:#fff; font-family:system-ui,sans-serif;
-      font-size:11px; font-weight:700; padding:3px 8px; border-radius:7px; white-space:nowrap; }
+    /* Etiquetas de origen/destino: pastilla blanca con punto de color (legible sobre mapa claro) */
+    /* Etiqueta de origen/destino: pastilla blanca centrada ENCIMA del punto, con flechita */
+    .leaflet-tooltip.lbl-tt { background:#fff; color:#14233F; border:0; border-radius:999px;
+      padding:4px 11px; font-family:system-ui,sans-serif; font-weight:800; font-size:11px;
+      white-space:nowrap; box-shadow:0 3px 12px rgba(20,30,60,.32); }
+    .leaflet-tooltip-top.lbl-tt::before { border-top-color:#fff; }
   </style>
 </head>
 <body>
@@ -122,6 +130,13 @@ export function buildMapHtml(
       map.setView(me.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
       post({ type:'follow', following:false });
     };
+    // Encuadre general: aleja hasta ver TU ubicación + toda la ruta (vista de entrada).
+    window.__fitAll = function(la, ln){
+      following = false;
+      var pts = (la != null && ln != null) ? ROUTE.concat([[la, ln]]) : ROUTE.slice();
+      map.fitBounds(pts, { padding:[55,55] });
+      post({ type:'follow', following:false });
+    };
 
     // Ruta completa (tenue) + tramo recorrido (sólido)
     L.polyline(ROUTE, { color: COLOR, weight: 5, opacity: .3 }).addTo(map);
@@ -129,10 +144,15 @@ export function buildMapHtml(
 
     // Paradas
     PARADAS.forEach(function (p, i) {
-      var isEnd = (i === 0 || i === PARADAS.length - 1);
-      L.marker(p.pos, { icon: L.divIcon({ className: '', html: '<div class="stop ' + (isEnd?'end':'') + '"></div>', iconSize:[16,16], iconAnchor:[8,8] }) }).addTo(map);
-      if (isEnd) {
-        L.marker(p.pos, { icon: L.divIcon({ className:'', html:'<div class="lbl">'+p.nombre+'</div>', iconSize:[0,0], iconAnchor:[-12,10] }) }).addTo(map);
+      var isStart = (i === 0), isEnd = (i === PARADAS.length - 1), terminal = isStart || isEnd;
+      // La parada ES el punto: verde=origen, rojo=destino, blanco=intermedia. Centrado.
+      var punto = terminal
+        ? '<div class="stop-term" style="background:' + (isStart ? '#16A34A' : '#EF4444') + '"></div>'
+        : '<div class="stop"></div>';
+      var m = L.marker(p.pos, { icon: L.divIcon({ className:'', html:'<div class="stop-wrap">'+punto+'</div>', iconSize:[22,22], iconAnchor:[11,11] }) }).addTo(map);
+      if (terminal) {
+        // Etiqueta flotante centrada encima del punto (se posiciona sola).
+        m.bindTooltip(p.nombre, { permanent:true, direction:'top', offset:[0,-7], className:'lbl-tt' });
       }
     });
 

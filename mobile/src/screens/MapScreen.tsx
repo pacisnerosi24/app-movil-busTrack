@@ -111,6 +111,24 @@ export default function MapScreen({ navigation }: any) {
     }
   }, [proj, road, cercaDeRuta]);
 
+  // Al TERMINAR de cargar el mapa, pinta tu ubicación (y tu parada) de una vez.
+  // Antes se inyectaba al cambiar userLoc, pero si el punto ya estaba listo
+  // esa orden se perdía por llegar antes de que el mapa existiera → no aparecías.
+  function onMapaListo() {
+    if (esConductor) {
+      if (userLoc) webRef.current?.injectJavaScript(`window.__setBus && window.__setBus(${userLoc.lat}, ${userLoc.lng}); true;`);
+    } else if (userLoc) {
+      // Muestra tu punto y aleja hasta ver tu ubicación + toda la ruta.
+      webRef.current?.injectJavaScript(`window.__setUser && window.__setUser(${userLoc.lat}, ${userLoc.lng}); window.__fitAll && window.__fitAll(${userLoc.lat}, ${userLoc.lng}); true;`);
+    } else {
+      webRef.current?.injectJavaScript(`window.__fitAll && window.__fitAll(); true;`);
+    }
+    if (road && proj && cercaDeRuta) {
+      const [la, ln] = road.coords[proj.idx];
+      webRef.current?.injectJavaScript(`window.__setStop && window.__setStop(${la}, ${ln}); true;`);
+    }
+  }
+
   // El HTML se genera una vez por ruta (marcador inicial en el ancla; el
   // punto "Tú" luego se mueve en vivo con window.__setUser).
   const html = useMemo(
@@ -197,6 +215,7 @@ export default function MapScreen({ navigation }: any) {
         originWhitelist={['*']}
         source={{ html }}
         onMessage={(e) => onMessage(e.nativeEvent.data)}
+        onLoadEnd={onMapaListo}
         javaScriptEnabled
         domStorageEnabled
         mixedContentMode="always"
@@ -310,11 +329,11 @@ const styles = StyleSheet.create({
   cancelarTxt: { color: colors.textMutedDark, fontWeight: '700' },
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 16 },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 8 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.navy, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.textDark, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
   pillDot: { width: 9, height: 9, borderRadius: 5 },
   pillTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
   chips: { gap: 8, alignItems: 'flex-end' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.navy, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.textDark, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
   chipTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
   warn: { alignSelf: 'flex-start', backgroundColor: colors.orange, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginTop: 8 },
   warnTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
