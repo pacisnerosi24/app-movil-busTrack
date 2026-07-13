@@ -33,7 +33,7 @@ export const RUTAS: Ruta[] = [
   {
     // Ruta REAL de Quito — Cooperativa Águila Dorada, bus #53.
     // Corredor: El Condado → La Prensa → La Y → 10 de Agosto → Congreso.
-    id: 'aguila53', idBus: 'AGUILA-53', nombre: 'Águila Dorada 53', etiqueta: 'Condado – Congreso',
+    id: 'aguila53', idBus: 'AGUILA-53', nombre: 'Águila Dorada', etiqueta: 'Condado – Congreso',
     origen: 'El Condado', destino: 'Congreso',
     minutos: 37, paradas: 24, tipoBus: 'Bus urbano (Quito)', color: '#C9962B',
     real: true,
@@ -52,45 +52,64 @@ export const RUTAS: Ruta[] = [
     ],
     nombresParadasVuelta: ['Congreso', 'El Ejido', 'Santa Clara', 'Av. América', 'Mariana de Jesús', 'La Gasca', 'La Y', 'Cotocollao', 'El Condado'],
   },
+  // ── Cooperativas de bus urbano de Quito (líneas reales; recorridos aprox.) ──
+  // Varias pasan por la Universidad Central (UCE), sector La Gasca.
   {
-    id: 'l14', idBus: 'BUS-014', nombre: 'Línea 14', etiqueta: 'Semisótano',
-    origen: 'Terminal Sur', destino: 'Centro Histórico',
-    minutos: 4, paradas: 12, tipoBus: 'Bus eléctrico', color: colors.blue,
+    id: 'alfa', idBus: 'ALFA-01', nombre: 'Trans Alfa', etiqueta: 'La Gasca – Guajaló',
+    origen: 'La Gasca (UCE)', destino: 'Guajaló',
+    minutos: 42, paradas: 26, tipoBus: 'Bus urbano · Coop. Alfa', color: '#7E57C2',
+    real: true,
     path: [
-      [-2.2005, -79.8990], [-2.1960, -79.9020], [-2.1900, -79.9055],
-      [-2.1848, -79.9108], [-2.1788, -79.9162], [-2.1720, -79.9212],
+      [-0.1960, -78.5060], [-0.1985, -78.5045], [-0.2100, -78.5000],
+      [-0.2205, -78.5090], [-0.2500, -78.5230], [-0.2780, -78.5390],
+      [-0.2870, -78.5410],
     ],
-    nombresParadas: ['Terminal Sur', 'Av. 25 de Julio', 'Barrio Cuba', 'Las Peñas', 'Malecón 2000', 'Centro Histórico'],
+    nombresParadas: ['La Gasca (UCE)', 'Miraflores', 'El Ejido', 'La Marín', 'El Recreo', 'Solanda', 'Guajaló'],
   },
   {
-    id: 'l27', idBus: 'BUS-027', nombre: 'Línea 27', etiqueta: 'Expreso Occidental',
-    origen: 'Villa del Río', destino: 'Aeropuerto',
-    minutos: 7, paradas: 8, tipoBus: 'Bus articulado', color: colors.purple,
+    id: 'latina', idBus: 'LATINA-01', nombre: 'Latina', etiqueta: 'Carcelén – UCE',
+    origen: 'Carcelén', destino: 'Universidad Central',
+    minutos: 38, paradas: 24, tipoBus: 'Bus urbano · Coop. Latina', color: '#EF6C00',
+    real: true,
     path: [
-      [-2.2200, -79.9300], [-2.2090, -79.9245], [-2.1965, -79.9150],
-      [-2.1840, -79.9050], [-2.1700, -79.8950], [-2.1572, -79.8845],
+      [-0.0990, -78.4790], [-0.1450, -78.4720], [-0.1750, -78.4870],
+      [-0.1830, -78.4850], [-0.1950, -78.4950], [-0.1985, -78.5045],
     ],
-    nombresParadas: ['Villa del Río', 'Puente Portete', 'Terminal Río', 'Av. Las Américas', 'CC Aeropuerto', 'Aeropuerto'],
+    nombresParadas: ['Carcelén', 'El Inca', 'La Y', 'La Carolina', 'Santa Clara', 'Universidad Central'],
   },
   {
-    id: 'ss', idBus: 'BUS-SS1', nombre: 'Semisótano', etiqueta: 'Ruta Expresa',
-    origen: 'Zona Industrial', destino: 'Plaza Mayor',
-    minutos: 11, paradas: 6, tipoBus: 'Bus rápido', color: colors.orange,
+    id: 'qlibre', idBus: 'QLIBRE-01', nombre: 'Quiteño Libre', etiqueta: 'Cotocollao – El Recreo',
+    origen: 'Cotocollao', destino: 'El Recreo',
+    minutos: 45, paradas: 28, tipoBus: 'Bus urbano · Coop. Quiteño Libre', color: '#00897B',
+    real: true,
     path: [
-      [-2.1400, -79.9000], [-2.1480, -79.9082], [-2.1560, -79.9150],
-      [-2.1638, -79.9200], [-2.1702, -79.9232], [-2.1762, -79.9255],
+      [-0.1080, -78.4890], [-0.1750, -78.4870], [-0.1985, -78.5045],
+      [-0.2100, -78.5000], [-0.2205, -78.5090], [-0.2500, -78.5230],
     ],
-    nombresParadas: ['Zona Industrial', 'Vía Daule', 'Prosperina', 'Urdesa', 'Policentro', 'Plaza Mayor'],
+    nombresParadas: ['Cotocollao', 'La Y', 'Universidad Central', 'El Ejido', 'La Marín', 'El Recreo'],
   },
   {
-    id: 'cn', idBus: 'BUS-CN1', nombre: 'Centro Norte', etiqueta: 'Troncal Norte',
-    origen: 'Terminal Norte', destino: 'Centro Cívico',
-    minutos: 15, paradas: 18, tipoBus: 'Bus convencional', color: colors.green,
+    id: 'sancarlos', idBus: 'SANCARLOS-01', nombre: 'San Carlos', etiqueta: 'San Carlos – La Marín',
+    origen: 'San Carlos', destino: 'La Marín',
+    minutos: 34, paradas: 20, tipoBus: 'Bus urbano · Coop. San Carlos', color: '#5D4037',
+    real: true,
     path: [
-      [-2.1200, -79.8950], [-2.1350, -79.9005], [-2.1500, -79.9085],
-      [-2.1620, -79.9150], [-2.1720, -79.9200], [-2.1782, -79.9238],
+      [-0.1350, -78.5050], [-0.1700, -78.4950], [-0.1985, -78.5045],
+      [-0.2100, -78.5000], [-0.2205, -78.5090],
     ],
-    nombresParadas: ['Terminal Norte', 'Bastión Popular', 'Guasmo Norte', 'Alborada', 'Garzota', 'Centro Cívico'],
+    nombresParadas: ['San Carlos', 'La Concepción', 'Universidad Central', 'El Ejido', 'La Marín'],
+  },
+  {
+    id: 'marcopolo', idBus: 'MARCOPOLO-01', nombre: 'Marco Polo', etiqueta: 'Comité del Pueblo – Villa Flora',
+    origen: 'Comité del Pueblo', destino: 'Villa Flora',
+    minutos: 40, paradas: 25, tipoBus: 'Bus urbano · Coop. Marco Polo', color: '#AD1457',
+    real: true,
+    path: [
+      [-0.1250, -78.4650], [-0.1450, -78.4720], [-0.1750, -78.4870],
+      [-0.1950, -78.4950], [-0.1985, -78.5045], [-0.2100, -78.5000],
+      [-0.2350, -78.5150],
+    ],
+    nombresParadas: ['Comité del Pueblo', 'El Inca', 'La Y', 'Santa Clara', 'Universidad Central', 'El Ejido', 'Villa Flora'],
   },
 ];
 
