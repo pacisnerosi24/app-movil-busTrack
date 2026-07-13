@@ -121,6 +121,8 @@ export function buildMapHtml(
     function soltar(){ if (ready && following){ following = false; post({ type:'follow', following:false }); } }
     map.on('dragstart', soltar);
     map.on('zoomstart', soltar);
+    // Tocar el mapa = elegir tu parada (RN decide si cae sobre la ruta).
+    map.on('click', function(e){ post({ type:'pick', lat:e.latlng.lat, lng:e.latlng.lng }); });
     window.__recenter = function(){
       following = true;
       if (buses[0]) map.setView(buses[0].marker.getLatLng(), map.getZoom(), { animate: true });

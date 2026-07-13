@@ -62,11 +62,9 @@ export default function MapScreen({ navigation }: any) {
   const webRef = useRef<WebView>(null);
   const [road, setRoad] = useState<RoadRoute | null>(null);
   const [trafico] = useState<Trafico>(() => getTraficoAhora());
-  const [prox, setProx] = useState(ruta?.origen ?? '');
   const [moviendo, setMoviendo] = useState(false);
   const [siguiendo, setSiguiendo] = useState(true);
   const [etaMe, setEtaMe] = useState<number | null>(null); // min hasta que el bus llega a ti
-  const [distMe, setDistMe] = useState<number | null>(null); // metros del bus a ti
 
   useEffect(() => {
     let vivo = true;
@@ -110,20 +108,46 @@ export default function MapScreen({ navigation }: any) {
   // Métricas de la ruta y proyección del pasajero (para el ETA hacia él).
   const metrics = useMemo(() => distanciasAcumuladas(road?.coords ?? []), [road]);
   const speedMps = road && road.durationSec > 0 ? road.distanceM / road.durationSec : 5;
-  const proj = useMemo(
-    () => (road && userLoc && !esConductor ? proyectar(road.coords, metrics.cum, [userLoc.lat, userLoc.lng]) : null),
-    [road, userLoc?.lat, userLoc?.lng, metrics, esConductor],
-  );
-  // ¿El pasajero está sobre esta ruta? (a menos de 1.5 km)
-  const cercaDeRuta = !!proj && proj.crossM < 1500;
+  // Cada PARADA de la ruta con su posición sobre el trazado real (para el ETA).
+  const paradasRoad = useMemo(() => {
+    if (!road) return [] as { i: number; nombre: string; pos: [number, number]; idx: number; alongM: number }[];
+    return paradas.map((p, i) => {
+      const pr = proyectar(road.coords, metrics.cum, p.pos);
+      return { i, nombre: p.nombre, pos: p.pos, idx: pr.idx, alongM: pr.alongM };
+    });
+  }, [road, paradas, metrics]);
 
-  // Dibuja "Tu parada" (punto de la ruta donde te recoge el bus).
+  // Parada ELEGIDA por el usuario (tocando una parada). Null = la más cercana a él.
+  // Se reinicia al cambiar de ruta o sentido.
+  const [paradaSelIdx, setParadaSelIdx] = useState<number | null>(null);
+  useEffect(() => { setParadaSelIdx(null); }, [ruta?.id, sentido]);
+
+  const paradaActiva = useMemo(() => {
+    if (esConductor || !paradasRoad.length) return null;
+    if (paradaSelIdx != null && paradasRoad[paradaSelIdx]) return paradasRoad[paradaSelIdx];
+    if (!userLoc) return null;
+    let best = paradasRoad[0], bestD = Infinity;
+    for (const p of paradasRoad) {
+      const d = metrosEntre(p.pos, [userLoc.lat, userLoc.lng]);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  }, [paradasRoad, paradaSelIdx, userLoc?.lat, userLoc?.lng, esConductor]);
+
+  // Cuánto caminas de tu punto a tu parada.
+  const distParada = useMemo(() => {
+    if (!paradaActiva || !userLoc) return null;
+    return metrosEntre(paradaActiva.pos, [userLoc.lat, userLoc.lng]);
+  }, [paradaActiva, userLoc?.lat, userLoc?.lng]);
+  const minCaminando = distParada != null ? Math.max(1, Math.ceil(distParada / 75)) : null; // ~75 m/min
+
+  // Dibuja "Tu parada" (la elegida por el usuario, o la más cercana a él).
   useEffect(() => {
-    if (road && proj && cercaDeRuta) {
-      const [la, ln] = road.coords[proj.idx];
+    if (road && paradaActiva) {
+      const [la, ln] = paradaActiva.pos;
       webRef.current?.injectJavaScript(`window.__setStop && window.__setStop(${la}, ${ln}); true;`);
     }
-  }, [proj, road, cercaDeRuta]);
+  }, [paradaActiva, road]);
 
   // Al TERMINAR de cargar el mapa, pinta tu ubicación (y tu parada) de una vez.
   // Antes se inyectaba al cambiar userLoc, pero si el punto ya estaba listo
@@ -137,8 +161,8 @@ export default function MapScreen({ navigation }: any) {
     } else {
       webRef.current?.injectJavaScript(`window.__fitAll && window.__fitAll(); true;`);
     }
-    if (road && proj && cercaDeRuta) {
-      const [la, ln] = road.coords[proj.idx];
+    if (road && paradaActiva) {
+      const [la, ln] = paradaActiva.pos;
       webRef.current?.injectJavaScript(`window.__setStop && window.__setStop(${la}, ${ln}); true;`);
     }
   }
@@ -181,21 +205,28 @@ export default function MapScreen({ navigation }: any) {
     try {
       const m = JSON.parse(raw);
       if (m.type === 'progress') {
-        setProx(m.prox);
         setMoviendo(true);
-        // Con varios buses: elige el que llega ANTES a tu parada (menor distancia
-        // restante hacia adelante sobre la ruta) y calcula su ETA/distancia.
+        // Con varios buses: elige el que llega ANTES a TU parada (la elegida o la
+        // más cercana), por menor distancia restante hacia adelante sobre la ruta.
         const buses: { frac: number; lat: number; lng: number }[] = m.buses ?? [];
-        if (proj && metrics.total > 0 && userLoc && buses.length) {
-          let best = null as (typeof buses)[number] | null;
+        if (paradaActiva && metrics.total > 0 && buses.length) {
           let bestRem = Infinity;
           for (const b of buses) {
             const busAlong = b.frac * metrics.total;
-            const rem = (((proj.alongM - busAlong) % metrics.total) + metrics.total) % metrics.total;
-            if (rem < bestRem) { bestRem = rem; best = b; }
+            const rem = (((paradaActiva.alongM - busAlong) % metrics.total) + metrics.total) % metrics.total;
+            if (rem < bestRem) bestRem = rem;
           }
           setEtaMe(Math.max(0, Math.ceil(bestRem / speedMps / 60)));
-          if (best) setDistMe(metrosEntre([best.lat, best.lng], [userLoc.lat, userLoc.lng]));
+        }
+      } else if (m.type === 'pick') {
+        // El usuario tocó el mapa: elige la PARADA de la ruta más cercana al toque.
+        if (paradasRoad.length) {
+          let bi = -1, bd = Infinity;
+          for (let i = 0; i < paradasRoad.length; i++) {
+            const d = metrosEntre(paradasRoad[i].pos, [m.lat, m.lng]);
+            if (d < bd) { bd = d; bi = i; }
+          }
+          if (bi >= 0 && bd < 900) setParadaSelIdx(bi);
         }
       } else if (m.type === 'follow') {
         setSiguiendo(m.following);
@@ -290,62 +321,70 @@ export default function MapScreen({ navigation }: any) {
         )}
       </View>
 
+      <View style={styles.cardWrap} pointerEvents="box-none">
       <View style={styles.card}>
-        <View style={{ flex: 1 }}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardDot, { backgroundColor: ruta.color }]} />
-            <Text style={styles.cardRoute} numberOfLines={1}>{ruta.nombre} — {ruta.etiqueta}</Text>
-            <TouchableOpacity style={styles.cambiar} onPress={() => navigation.navigate('SeleccionRuta')}>
-              <Ionicons name="arrow-back" size={13} color={ruta.color} />
-              <Text style={[styles.cambiarTxt, { color: ruta.color }]}>Cambiar</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Encabezado: ruta + cambiar (alineado a la derecha) */}
+        <View style={styles.cardHeader}>
+          <View style={[styles.cardDot, { backgroundColor: ruta.color }]} />
+          <Text style={styles.cardRoute} numberOfLines={1}>{ruta.nombre}</Text>
+          <TouchableOpacity style={styles.cambiar} onPress={() => navigation.navigate('SeleccionRuta')} activeOpacity={0.8}>
+            <Ionicons name="swap-horizontal" size={15} color={ruta.color} />
+            <Text style={[styles.cambiarTxt, { color: ruta.color }]}>Cambiar</Text>
+          </TouchableOpacity>
+        </View>
 
-          {esConductor ? (
-            <>
+        {esConductor ? (
+          <View style={styles.infoRow}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.etaLabel}>Transmitiendo tu GPS como el bus</Text>
-              <Text style={[styles.eta, { color: colors.red }]}>En vivo</Text>
+              <View style={styles.etaRow}>
+                <Text style={[styles.eta, { color: colors.red }]}>En vivo</Text>
+              </View>
               <View style={styles.proxRow}>
                 <Ionicons name="cloud-upload" size={14} color={colors.green} />
                 <Text style={styles.proxTxt} numberOfLines={1}>{transmisiones} ubicaciones enviadas</Text>
               </View>
-            </>
-          ) : cercaDeRuta ? (
-            <>
-              <Text style={styles.etaLabel}>Tu bus llega en:</Text>
-              <Text style={styles.eta}>{etaMe ?? '—'} min</Text>
-              <View style={styles.proxRow}>
-                <Ionicons name="navigate" size={13} color={ruta.color} />
-                <Text style={styles.proxTxt} numberOfLines={1}>
-                  El bus está a {distMe != null ? fmtDist(distMe) : '—'} de ti
-                </Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={styles.etaLabel}>Recorrido de la ruta</Text>
-              <Text style={styles.eta}>{etaTotal} min</Text>
-              <View style={styles.proxRow}>
-                <Ionicons name="information-circle-outline" size={13} color={colors.textMutedDark} />
-                <Text style={styles.proxTxt} numberOfLines={1}>
-                  {ruta.real ? 'Ruta real de Quito — no estás en esa zona' : 'No estás sobre esta ruta'}
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
-
-        {esConductor ? (
-          <View style={[styles.busBtn, { backgroundColor: colors.red }]}>
-            <MaterialCommunityIcons name="broadcast" size={28} color="#fff" />
-            <Text style={styles.busBtnTxt}>LIVE</Text>
+            </View>
+            <View style={styles.liveBadge}>
+              <MaterialCommunityIcons name="broadcast" size={22} color="#fff" />
+              <Text style={styles.liveTxt}>LIVE</Text>
+            </View>
           </View>
+        ) : userLoc ? (
+          <>
+            <View style={styles.etaHead}>
+              <Text style={styles.etaLabel} numberOfLines={1}>
+                Llega a {paradaActiva?.nombre ?? 'tu parada'} en
+              </Text>
+              {paradaSelIdx != null && (
+                <TouchableOpacity style={styles.resetParada} onPress={() => setParadaSelIdx(null)} activeOpacity={0.8}>
+                  <Ionicons name="close" size={13} color={ruta.color} />
+                  <Text style={[styles.resetParadaTxt, { color: ruta.color }]}>Elegida</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.etaRow}>
+              <Text style={styles.eta}>{etaMe ?? '—'}</Text>
+              <Text style={styles.etaUnit}>min</Text>
+            </View>
+            <View style={styles.proxRow}>
+              <Ionicons name="walk" size={16} color={ruta.color} />
+              <Text style={styles.proxTxt} numberOfLines={1}>
+                Tu parada a {distParada != null ? fmtDist(distParada) : '—'}
+                {minCaminando != null ? ` · ~${minCaminando} min caminando` : ''}
+              </Text>
+            </View>
+            <Text style={styles.hintTap}>
+              <Ionicons name="hand-left-outline" size={12} color={colors.textMutedDark} /> Toca una parada para ver su tiempo
+            </Text>
+          </>
         ) : (
-          <View style={[styles.busBtn, { backgroundColor: ruta.color }]}>
-            <MaterialCommunityIcons name="bus" size={30} color="#fff" />
-            <Text style={styles.busBtnTxt}>En ruta</Text>
-          </View>
+          <>
+            <Text style={[styles.etaLabel, { marginTop: 12 }]}>Activando tu ubicación…</Text>
+            <View style={styles.etaRow}><Text style={styles.eta}>—</Text></View>
+          </>
         )}
+      </View>
       </View>
     </View>
   );
@@ -374,20 +413,26 @@ const styles = StyleSheet.create({
   fabCol: { position: 'absolute', right: 16, bottom: 215, alignItems: 'flex-end', gap: 10 },
   fab: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   fabTxt: { fontWeight: '800', fontSize: 13 },
-  card: { position: 'absolute', left: 14, right: 14, bottom: 16, backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
+  cardWrap: { position: 'absolute', left: 0, right: 0, bottom: 16, paddingHorizontal: 14, alignItems: 'center' },
+  card: { width: '100%', maxWidth: 440, backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   cardDot: { width: 9, height: 9, borderRadius: 5 },
-  cardRoute: { color: colors.textDark, fontWeight: '800', fontSize: 15, flex: 1 },
-  cambiar: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.lightBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  cambiarTxt: { fontWeight: '800', fontSize: 12 },
-  etaLabel: { color: colors.textMutedDark, fontSize: 14, marginTop: 8 },
-  eta: { color: colors.green, fontSize: 32, fontWeight: '900', marginTop: 2 },
-  progressTrack: { height: 6, borderRadius: 3, backgroundColor: colors.lightBg, marginTop: 12, overflow: 'hidden' },
-  progressFill: { height: 6, borderRadius: 3 },
-  proxRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  proxTxt: { color: colors.textMutedDark, fontSize: 13, flex: 1 },
-  busBtn: { width: 78, height: 78, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  busBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 12, marginTop: 2 },
+  cardRoute: { color: colors.textDark, fontWeight: '800', fontSize: 18, flex: 1 },
+  cambiar: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.lightBg, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999 },
+  cambiarTxt: { fontWeight: '800', fontSize: 14 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
+  etaHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  resetParada: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.lightBg, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  resetParadaTxt: { fontWeight: '800', fontSize: 12 },
+  hintTap: { color: colors.textMutedDark, fontSize: 12.5, marginTop: 10 },
+  etaLabel: { color: colors.textMutedDark, fontSize: 15, fontWeight: '600' },
+  etaRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 2 },
+  eta: { color: colors.green, fontSize: 52, fontWeight: '900', letterSpacing: -1.5 },
+  etaUnit: { color: colors.green, fontSize: 24, fontWeight: '800' },
+  proxRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10 },
+  proxTxt: { color: colors.textDark, fontSize: 15, flex: 1, fontWeight: '500' },
+  liveBadge: { backgroundColor: colors.red, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center', gap: 2 },
+  liveTxt: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 1 },
   empty: { flex: 1, backgroundColor: colors.lightBg, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 30 },
   emptyTxt: { color: colors.textMutedDark, fontSize: 16, fontWeight: '600' },
   emptyBtn: { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: radius.md },
