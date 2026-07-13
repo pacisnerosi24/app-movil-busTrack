@@ -1,28 +1,29 @@
 // Paleta y tokens de diseño de RutaSegura.
-// Identidad: AZUL transporte (Ecuador) como color principal + AMARILLO de acento.
+// Estilo "Blanco Uber": fondo claro, texto tinta, AZUL vivo solo en acciones.
+// (El modo oscuro "Grafito" se agregará como paso 2.)
 export const colors = {
-  // Fondos oscuros azul-navy (Login / selección de ruta)
-  navy: '#0B1B33',
-  navyCard: '#15294A',
-  navyCardAlt: '#1B345C',
-  navyBorder: '#274063',
+  // Fondos claros (nombres heredados de la etapa oscura; ahora = claros)
+  navy: '#F6F8FB',       // fondo de pantalla (Login / Rutas)
+  navyCard: '#FFFFFF',   // tarjetas y campos
+  navyCardAlt: '#F0F4FA',
+  navyBorder: '#E4E9F1', // líneas / bordes suaves
 
   // Fondos claros (Mapa / Reportes)
-  lightBg: '#EAF0F7',
+  lightBg: '#F6F8FB',
   white: '#FFFFFF',
 
-  // Color principal (botones, tabs activos, marca)
-  primary: '#0A5CA8',
-  primaryLight: '#57A5E0', // para enlaces/acentos sobre fondo oscuro
+  // Color principal (botones, tabs activos, marca) — azul vivo del logo
+  primary: '#1C6EF2',
+  primaryLight: '#5E97F6',
 
   // Acento (Ecuador) — realces puntuales
-  yellow: '#F3C13A',
+  yellow: '#F5B927',
 
-  // Texto
-  textLight: '#E7EEF7',
-  textMutedLight: '#93A4BC',
-  textDark: '#0E1B2E',
-  textMutedDark: '#64748B',
+  // Texto (ahora sobre fondo claro): 'light' = texto principal tinta, muted = gris
+  textLight: '#101828',
+  textMutedLight: '#5B6472',
+  textDark: '#101828',
+  textMutedDark: '#5B6472',
 
   // Semánticos
   green: '#16A34A',
@@ -32,7 +33,7 @@ export const colors = {
   orange: '#D97B29',
   orangeSoft: '#F6E0C8',
   purple: '#7C5CFC',
-  blue: '#3B5BDB',
+  blue: '#2680EB',
 
   border: '#E2E8F0',
 };

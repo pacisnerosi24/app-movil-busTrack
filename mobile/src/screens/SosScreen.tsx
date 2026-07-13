@@ -50,7 +50,7 @@ export default function SosScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.navy },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
-  title: { color: '#fff', fontSize: 26, fontWeight: '900' },
+  title: { color: colors.textLight, fontSize: 26, fontWeight: '900' },
   sub: { color: colors.textMutedLight, fontSize: 15, textAlign: 'center', marginTop: 10, marginBottom: 40, lineHeight: 22 },
   sosBtn: { width: 200, height: 200, borderRadius: 100, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center', shadowColor: colors.red, shadowOpacity: 0.5, shadowRadius: 30, shadowOffset: { width: 0, height: 0 }, elevation: 12 },
   sosTxt: { color: '#fff', fontSize: 40, fontWeight: '900', marginTop: 4 },

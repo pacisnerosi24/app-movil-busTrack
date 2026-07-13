@@ -92,9 +92,9 @@ export default function ReportsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.lightBg },
-  banner: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  banner: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
   bannerTitle: { color: '#fff', fontSize: 24, fontWeight: '900' },
-  bannerSub: { color: colors.textMutedLight, fontSize: 14, marginTop: 4 },
+  bannerSub: { color: '#DCE8FF', fontSize: 14, marginTop: 4 },
   bannerIcon: { width: 58, height: 58, borderRadius: 16, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center' },
   section: { color: colors.textDark, fontSize: 19, fontWeight: '800', marginTop: 22, marginBottom: 12 },
   card: { backgroundColor: '#fff', borderRadius: radius.md, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12, borderWidth: 1.5, borderColor: 'transparent' },

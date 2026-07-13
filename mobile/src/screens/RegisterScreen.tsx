@@ -128,7 +128,7 @@ function RolBtn({ activo, onPress, icon, texto, color }: { activo: boolean; onPr
       activeOpacity={0.8}
     >
       <MaterialCommunityIcons name={icon} size={26} color={activo ? color : colors.textMutedLight} />
-      <Text style={[styles.rolBtnTxt, activo && { color: colors.white }]}>{texto}</Text>
+      <Text style={[styles.rolBtnTxt, activo && { color }]}>{texto}</Text>
     </TouchableOpacity>
   );
 }
@@ -137,16 +137,16 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.navy },
   container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
   back: { position: 'absolute', top: 40, left: 20 },
-  brand: { fontSize: 32, fontWeight: '900', color: colors.white, letterSpacing: -0.5 },
+  brand: { fontSize: 32, fontWeight: '900', color: colors.textLight, letterSpacing: -0.5 },
   subtitle: { fontSize: 15, color: colors.textMutedLight, marginTop: 4, marginBottom: 22 },
   label: { fontSize: 13, color: colors.textMutedLight, fontWeight: '700', marginBottom: 8 },
   rolRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
-  rolBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: colors.navyCard, borderRadius: radius.md, paddingVertical: 18, borderWidth: 1.5, borderColor: 'transparent' },
+  rolBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: colors.navyCard, borderRadius: radius.md, paddingVertical: 18, borderWidth: 1.5, borderColor: colors.navyBorder },
   rolBtnTxt: { color: colors.textMutedLight, fontWeight: '700', fontSize: 14 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.navyCard, borderRadius: radius.md, paddingHorizontal: 18, marginBottom: 14 },
-  input: { paddingVertical: 17, color: colors.white, fontSize: 16 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.navyCard, borderRadius: radius.md, paddingHorizontal: 18, marginBottom: 14, borderWidth: 1, borderColor: colors.navyBorder },
+  input: { paddingVertical: 17, color: colors.textLight, fontSize: 16 },
   hint: { color: colors.textMutedLight, fontSize: 12, marginBottom: 6 },
-  error: { color: '#FCA5A5', marginBottom: 10, fontSize: 13 },
+  error: { color: colors.red, marginBottom: 10, fontSize: 13 },
   primaryBtn: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 18, alignItems: 'center', marginTop: 8 },
   primaryTxt: { color: colors.white, fontWeight: '800', fontSize: 17 },
   loginLink: { alignItems: 'center', marginTop: 20 },
