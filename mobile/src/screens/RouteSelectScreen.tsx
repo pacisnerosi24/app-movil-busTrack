@@ -10,9 +10,32 @@ import { colors, radius } from '../theme';
 const DIACRITICOS = new RegExp('[\\u0300-\\u036f]', 'g');
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(DIACRITICOS, '');
 
+// Hash estable del id → una "fase" fija por ruta (para que no todas lleguen a la vez).
+function hashId(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+// Minutos hasta el próximo bus, según la frecuencia de la línea y la hora real.
+// Simulación: no hay horarios oficiales; en producción vendría del GPS en vivo.
+function proximoBusMin(id: string, frecuencia: number, ahora: Date): number {
+  const minutosDia = ahora.getHours() * 60 + ahora.getMinutes() + ahora.getSeconds() / 60;
+  const fase = hashId(id) % frecuencia;
+  const restante = frecuencia - ((minutosDia + fase) % frecuencia);
+  return Math.max(1, Math.ceil(restante));
+}
+
 export default function RouteSelectScreen({ navigation }: any) {
   const { setRutaSeleccionada, userLoc, ubicStatus, esConductor, usuario, iniciarSeguimiento, logout } = useApp();
   const [busqueda, setBusqueda] = useState('');
+
+  // Reloj que avanza para recalcular la cuenta regresiva del próximo bus.
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(new Date()), 15000);
+    return () => clearInterval(t);
+  }, []);
 
   // Filtra por nombre, etiqueta, origen, destino o tipo de bus.
   const rutasFiltradas = useMemo(() => {
@@ -141,12 +164,22 @@ export default function RouteSelectScreen({ navigation }: any) {
               <Ionicons name="chevron-forward" size={20} color={colors.textMutedLight} />
             </View>
 
+            {!esConductor && (
+              <View style={[styles.prox, { backgroundColor: r.color + '18' }]}>
+                <View style={[styles.proxDot, { backgroundColor: r.color }]} />
+                <Text style={[styles.proxTxt, { color: r.color }]}>
+                  Próximo bus en {proximoBusMin(r.id, r.frecuenciaMin, ahora)} min
+                </Text>
+                <Text style={styles.proxFrec}>· cada {r.frecuenciaMin} min</Text>
+              </View>
+            )}
+
             <View style={styles.metaRow}>
-              <Meta icon="time-outline" text={`${r.minutos} min`} strong />
+              <Meta icon="time-outline" text={`${r.minutos} min recorrido`} />
               <View style={styles.sep} />
               <Meta icon="location-outline" text={`${r.paradas} paradas`} />
               <View style={styles.sep} />
-              <Text style={styles.metaTxt}>{r.tipoBus}</Text>
+              <Text style={styles.metaTxt} numberOfLines={1}>{r.tipoBus}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -191,7 +224,11 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8 },
   badgeTxt: { fontSize: 12, fontWeight: '700' },
   route: { color: colors.textMutedLight, fontSize: 14, marginTop: 3 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 10 },
+  prox: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  proxDot: { width: 8, height: 8, borderRadius: 4 },
+  proxTxt: { fontSize: 15, fontWeight: '800' },
+  proxFrec: { color: colors.textMutedLight, fontSize: 13, fontWeight: '600' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 10 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaTxt: { color: colors.textMutedLight, fontSize: 13 },
   sep: { width: 1, height: 14, backgroundColor: colors.navyBorder },

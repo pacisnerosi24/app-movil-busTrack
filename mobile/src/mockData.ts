@@ -12,7 +12,8 @@ export type Ruta = {
   etiqueta: string;
   origen: string;
   destino: string;
-  minutos: number;
+  minutos: number;       // duración total del recorrido
+  frecuenciaMin: number; // cada cuántos minutos pasa un bus de la línea (headway)
   paradas: number;
   tipoBus: string;
   color: string;
@@ -35,29 +36,28 @@ export const RUTAS: Ruta[] = [
     // Corredor: El Condado → La Prensa → La Y → 10 de Agosto → Congreso.
     id: 'aguila53', idBus: 'AGUILA-53', nombre: 'Águila Dorada', etiqueta: 'Condado – Congreso',
     origen: 'El Condado', destino: 'Congreso',
-    minutos: 37, paradas: 24, tipoBus: 'Bus urbano (Quito)', color: '#C9962B',
+    minutos: 37, frecuenciaMin: 10, paradas: 24, tipoBus: 'Bus urbano (Quito)', color: '#C9962B',
     real: true,
+    // Waypoints sobre avenidas reales (verificado con OSRM: sin desvíos/ganchos).
     path: [
-      [-0.0967, -78.4939], [-0.1080, -78.4865], [-0.1450, -78.4850],
-      [-0.1698, -78.4889], [-0.1800, -78.4905], [-0.1965, -78.4925],
-      [-0.2020, -78.4950], [-0.2075, -78.4980], [-0.2110, -78.5000],
+      [-0.0967, -78.4939], [-0.1290, -78.4880], [-0.1746, -78.4869],
+      [-0.1950, -78.4930], [-0.2100, -78.5010],
     ],
-    nombresParadas: ['El Condado', 'Cotocollao', 'La Prensa', 'La Y', 'La Gasca', 'Av. Colón', 'Santa Clara', 'El Ejido', 'Congreso'],
+    nombresParadas: ['El Condado', 'La Prensa', 'La Y', 'Santa Clara', 'Congreso'],
     // VUELTA (Congreso → El Condado) por un corredor distinto (aprox. Av. América),
-    // no las mismas calles de la ida. Aproximación para la simulación.
+    // pero sobre calles con buena conexión para que el trazado no se devuelva.
     pathVuelta: [
-      [-0.2110, -78.5000], [-0.2040, -78.5035], [-0.1900, -78.5060],
-      [-0.1750, -78.5055], [-0.1590, -78.5020], [-0.1440, -78.4975],
-      [-0.1230, -78.4910], [-0.1070, -78.4885], [-0.0967, -78.4939],
+      [-0.2100, -78.5010], [-0.1950, -78.4985], [-0.1746, -78.4955],
+      [-0.1500, -78.4915], [-0.1200, -78.4860], [-0.0967, -78.4939],
     ],
-    nombresParadasVuelta: ['Congreso', 'El Ejido', 'Santa Clara', 'Av. América', 'Mariana de Jesús', 'La Gasca', 'La Y', 'Cotocollao', 'El Condado'],
+    nombresParadasVuelta: ['Congreso', 'Av. América', 'La Y', 'La Concepción', 'La Prensa', 'El Condado'],
   },
   // ── Cooperativas de bus urbano de Quito (líneas reales; recorridos aprox.) ──
   // Varias pasan por la Universidad Central (UCE), sector La Gasca.
   {
     id: 'alfa', idBus: 'ALFA-01', nombre: 'Trans Alfa', etiqueta: 'La Gasca – Guajaló',
     origen: 'La Gasca (UCE)', destino: 'Guajaló',
-    minutos: 42, paradas: 26, tipoBus: 'Bus urbano · Coop. Alfa', color: '#7E57C2',
+    minutos: 42, frecuenciaMin: 8, paradas: 26, tipoBus: 'Bus urbano · Coop. Alfa', color: '#7E57C2',
     real: true,
     path: [
       [-0.1960, -78.5060], [-0.1985, -78.5045], [-0.2100, -78.5000],
@@ -69,7 +69,7 @@ export const RUTAS: Ruta[] = [
   {
     id: 'latina', idBus: 'LATINA-01', nombre: 'Latina', etiqueta: 'Carcelén – UCE',
     origen: 'Carcelén', destino: 'Universidad Central',
-    minutos: 38, paradas: 24, tipoBus: 'Bus urbano · Coop. Latina', color: '#EF6C00',
+    minutos: 38, frecuenciaMin: 12, paradas: 24, tipoBus: 'Bus urbano · Coop. Latina', color: '#EF6C00',
     real: true,
     path: [
       [-0.0990, -78.4790], [-0.1450, -78.4720], [-0.1750, -78.4870],
@@ -80,7 +80,7 @@ export const RUTAS: Ruta[] = [
   {
     id: 'qlibre', idBus: 'QLIBRE-01', nombre: 'Quiteño Libre', etiqueta: 'Cotocollao – El Recreo',
     origen: 'Cotocollao', destino: 'El Recreo',
-    minutos: 45, paradas: 28, tipoBus: 'Bus urbano · Coop. Quiteño Libre', color: '#00897B',
+    minutos: 45, frecuenciaMin: 9, paradas: 28, tipoBus: 'Bus urbano · Coop. Quiteño Libre', color: '#00897B',
     real: true,
     path: [
       [-0.1080, -78.4890], [-0.1750, -78.4870], [-0.1985, -78.5045],
@@ -91,7 +91,7 @@ export const RUTAS: Ruta[] = [
   {
     id: 'sancarlos', idBus: 'SANCARLOS-01', nombre: 'San Carlos', etiqueta: 'San Carlos – La Marín',
     origen: 'San Carlos', destino: 'La Marín',
-    minutos: 34, paradas: 20, tipoBus: 'Bus urbano · Coop. San Carlos', color: '#5D4037',
+    minutos: 34, frecuenciaMin: 13, paradas: 20, tipoBus: 'Bus urbano · Coop. San Carlos', color: '#5D4037',
     real: true,
     path: [
       [-0.1350, -78.5050], [-0.1700, -78.4950], [-0.1985, -78.5045],
@@ -102,7 +102,7 @@ export const RUTAS: Ruta[] = [
   {
     id: 'marcopolo', idBus: 'MARCOPOLO-01', nombre: 'Marco Polo', etiqueta: 'Comité del Pueblo – Villa Flora',
     origen: 'Comité del Pueblo', destino: 'Villa Flora',
-    minutos: 40, paradas: 25, tipoBus: 'Bus urbano · Coop. Marco Polo', color: '#AD1457',
+    minutos: 40, frecuenciaMin: 11, paradas: 25, tipoBus: 'Bus urbano · Coop. Marco Polo', color: '#AD1457',
     real: true,
     path: [
       [-0.1250, -78.4650], [-0.1450, -78.4720], [-0.1750, -78.4870],

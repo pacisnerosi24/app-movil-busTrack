@@ -36,12 +36,17 @@ export function buildMapHtml(
     html, body, #map { height: 100%; margin: 0; background: #EAEEF2; }
     .leaflet-control-attribution { font-size: 9px; opacity: .5; }
     /* Bus estilo Uber/Moovit: círculo de color con ícono de bus blanco (SVG) */
-    .bus-halo { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    .bus-halo { position:relative; width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center;
       background:${color}2E; }
     .bus-pin { display:flex; align-items:center; justify-content:center;
       width:38px; height:38px; border-radius:50%; background:${color};
       border:3px solid #fff; box-shadow:0 3px 10px rgba(0,0,0,.4); }
     .bus-pin svg { width:21px; height:21px; fill:#fff; }
+    /* Aguja de rumbo: gira alrededor del bus apuntando hacia dónde viaja */
+    .bus-dir-wrap { position:absolute; inset:0; display:flex; align-items:flex-start; justify-content:center;
+      transition:transform .35s linear; will-change:transform; }
+    .bus-dir { width:0; height:0; margin-top:-5px; border-left:7px solid transparent; border-right:7px solid transparent;
+      border-bottom:11px solid ${color}; filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff); }
     /* Flechas de dirección sobre la ruta (hacia dónde va el bus) */
     .arrow { color:${color}; font-size:15px; line-height:15px; font-weight:900;
       text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
@@ -203,7 +208,18 @@ export function buildMapHtml(
     // uniformemente, para que SIEMPRE haya alguno en camino (más real).
     // El conductor usa 1 (su GPS real).
     var BUS_SVG = '<svg viewBox="0 0 24 24"><path d="M4 16V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-1 1.7V19a1 1 0 0 1-2 0v-1H7v1a1 1 0 0 1-2 0v-1.3A2 2 0 0 1 4 16Zm2-9v5h12V7H6Zm1.5 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>';
-    function nuevoBusIcon(){ return L.divIcon({ className:'', html:'<div class="bus-halo"><div class="bus-pin">'+BUS_SVG+'</div></div>', iconSize:[52,52], iconAnchor:[26,26] }); }
+    function nuevoBusIcon(){ return L.divIcon({ className:'', html:'<div class="bus-halo"><div class="bus-dir-wrap"><div class="bus-dir"></div></div><div class="bus-pin">'+BUS_SVG+'</div></div>', iconSize:[52,52], iconAnchor:[26,26] }); }
+    // Rumbo (grados, 0 = norte/arriba, horario) del segmento por el que va el bus.
+    function rumboSeg(seg){
+      var a = ROUTE[Math.max(1, seg) - 1], b = ROUTE[Math.max(1, seg)];
+      if (!a || !b) return 0;
+      return Math.atan2(b[1]-a[1], b[0]-a[0]) * 180 / Math.PI;
+    }
+    // Aplica la rotación de la aguja al marcador de un bus.
+    function orientar(marker, deg){
+      var el = marker.getElement(); if (!el) return;
+      var w = el.querySelector('.bus-dir-wrap'); if (w) w.style.transform = 'rotate('+deg+'deg)';
+    }
     var NBUS = (MODO === 'pasajero') ? Math.max(1, Math.min(3, Math.round(MIN / 12))) : 1;
     var buses = [];
     for (var bi = 0; bi < NBUS; bi++) {
@@ -258,6 +274,7 @@ export function buildMapHtml(
         var f = fracDe(buses[b].phase);
         var p = pointAt(f);
         buses[b].marker.setLatLng([p.la, p.ln]);
+        orientar(buses[b].marker, rumboSeg(p.seg));
         buses[b].frac = f; buses[b].la = p.la; buses[b].ln = p.ln;
         lista.push({ frac:f, lat:p.la, lng:p.ln });
         if (USER){ var d = dist([p.la,p.ln],[USER.lat,USER.lng]); if (d < nearD){ nearD = d; nearIdx = b; } }
@@ -277,9 +294,14 @@ export function buildMapHtml(
     }
 
     // Modo conductor: el bus = ubicación real del conductor (enviada desde RN).
-    var condTrail = [];
+    var condTrail = [], condPrev = null;
     window.__setBus = function(la, ln){
       buses[0].marker.setLatLng([la, ln]);
+      // Rumbo por GPS: dirección desde la última posición hacia la nueva.
+      if (condPrev && (condPrev[0] !== la || condPrev[1] !== ln)) {
+        orientar(buses[0].marker, Math.atan2(ln - condPrev[1], la - condPrev[0]) * 180 / Math.PI);
+      }
+      condPrev = [la, ln];
       condTrail.push([la, ln]);
       traveled.setLatLngs(condTrail);
       if (following) map.panTo([la, ln], { animate: false });
