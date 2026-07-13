@@ -24,11 +24,13 @@ export default function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
+        // Fuerza ícono ARRIBA y etiqueta ABAJO (en tablets RN los pone al lado).
+        tabBarLabelPosition: 'below-icon',
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMutedDark,
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 11.5, fontWeight: '700', marginTop: 3 },
         tabBarStyle: styles.tabBar,
-        tabBarItemStyle: { paddingVertical: 8 },
+        tabBarItemStyle: { paddingVertical: 6 },
       }}
     >
       <Tab.Screen
@@ -46,7 +48,7 @@ export default function MainTabs() {
       <Tab.Screen
         name="SOS"
         component={SosScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="alert" /> }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} name={focused ? 'alert-circle' : 'alert-circle-outline'} /> }}
       />
       <Tab.Screen
         name="Reportes"
