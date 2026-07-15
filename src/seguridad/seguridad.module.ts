@@ -7,10 +7,11 @@ import { DispararAlertaService } from './aplicacion/casos-uso/disparar-alerta.se
 import { EmergenciasController } from './infraestrucrura/adaptadores-entrada/controladores/emergencias.controller';
 import { ANALIZADOR_IA_PORT } from './aplicacion/puertos/analizador-ia.interface';
 import { FastApiAnalizadorService } from './infraestrucrura/adaptadores-salida/ia/fastapi-analizador.service';
+import { NOTIFICADOR_PORT } from './aplicacion/puertos/notificador.interface';
+import { TelegramNotificadorService } from './infraestrucrura/adaptadores-salida/notificaciones/telegram-notificador.service';
 
 @Module({
   imports: [
-    // Registramos nuestra entidad para que TypeORM cree la tabla 'alertas'
     TypeOrmModule.forFeature([AlertaOrmEntity])
   ],
   controllers: [EmergenciasController],
@@ -22,6 +23,10 @@ import { FastApiAnalizadorService } from './infraestrucrura/adaptadores-salida/i
     {
       provide: ANALIZADOR_IA_PORT,
       useClass: FastApiAnalizadorService
+    },
+    { // <-- NUEVA INYECCIÓN DE DEPENDENCIA
+      provide: NOTIFICADOR_PORT,
+      useClass: TelegramNotificadorService
     },
     DispararAlertaService,
   ],
