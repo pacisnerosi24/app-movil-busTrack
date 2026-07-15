@@ -22,7 +22,9 @@ export class EmergenciasController {
       body.idBus, 
       body.tipo, 
       audio?.buffer,
-      audio?.originalname
+      audio?.originalname,
+      body.latitud,
+      body.longitud  
     );
     
     return {

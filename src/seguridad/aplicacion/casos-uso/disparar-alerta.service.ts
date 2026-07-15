@@ -1,7 +1,7 @@
 import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
 import { ALERTA_REPOSITORY, type IAlertaRepository } from '../puertos/alerta.repository.interface';
 import { ANALIZADOR_IA_PORT, type IAnalizadorIA } from '../puertos/analizador-ia.interface';
-import { NOTIFICADOR_PORT, type INotificador } from '../puertos/notificador.interface'; // <-- NUEVO
+import { NOTIFICADOR_PORT, type INotificador } from '../puertos/notificador.interface';
 import { Alerta, TipoAlerta } from '../../dominio/entidades/alerta.entity';
 import { v4 as uuidv4 } from 'uuid'; 
 
@@ -12,10 +12,17 @@ export class DispararAlertaService {
   constructor(
     @Inject(ALERTA_REPOSITORY) private readonly alertaRepository: IAlertaRepository,
     @Inject(ANALIZADOR_IA_PORT) private readonly analizadorIA: IAnalizadorIA,
-    @Inject(NOTIFICADOR_PORT) private readonly notificador: INotificador, // <-- NUEVO
+    @Inject(NOTIFICADOR_PORT) private readonly notificador: INotificador,
   ) {}
 
-  async ejecutar(idBus: string, tipo: TipoAlerta, audioBuffer?: Buffer, nombreArchivo?: string): Promise<Alerta> {
+  async ejecutar(
+    idBus: string, 
+    tipo: TipoAlerta, 
+    audioBuffer?: Buffer, 
+    nombreArchivo?: string,
+    latitud?: number, 
+    longitud?: number
+  ): Promise<Alerta> {
     let esAmenazaConfirmada = false;
     let detalleAlerta = 'Pánico manual activado';
 
@@ -45,10 +52,8 @@ export class DispararAlertaService {
     // Guardamos en PostgreSQL
     await this.alertaRepository.guardar(nuevaAlerta);
 
-    // <-- NUEVO: Enviamos la alerta a Telegram de forma asíncrona
-    // No usamos await aquí si no queremos bloquear la respuesta HTTP al cliente, 
-    // pero si prefieres asegurar el envío antes de responder, puedes dejarle el await.
-    await this.notificador.enviarAlertaCritica(idBus, detalleAlerta);
+    // Enviamos la alerta a Telegram de forma asíncrona pasando las coordenadas
+    await this.notificador.enviarAlertaCritica(idBus, detalleAlerta, latitud, longitud);
 
     return nuevaAlerta;
   }

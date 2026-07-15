@@ -8,7 +8,7 @@ export class TelegramNotificadorService implements INotificador {
   private readonly botToken = process.env.TELEGRAM_BOT_TOKEN;
   private readonly chatId = process.env.TELEGRAM_CHAT_ID;
 
-  async enviarAlertaCritica(idBus: string, motivo: string): Promise<void> {
+  async enviarAlertaCritica(idBus: string, motivo: string, latitud?: number, longitud?: number): Promise<void> {
     if (!this.botToken || !this.chatId) {
       this.logger.error('Faltan credenciales de Telegram en las variables de entorno.');
       return;
@@ -16,18 +16,25 @@ export class TelegramNotificadorService implements INotificador {
 
     try {
       const url = `https://api.telegram.org/bot${this.botToken}/sendMessage`;
-      const mensaje = `🚨 *ALERTA CRÍTICA EN BUS ${idBus}* 🚨\n\n*Motivo:* ${motivo}\n*Fecha:* ${new Date().toLocaleString()}`;
+      let mensaje = `🚨 *ALERTA CRÍTICA EN BUS ${idBus}* 🚨\n\n*Motivo:* ${motivo}\n*Fecha:* ${new Date().toLocaleString()}`;
+
+      // Si llegaron las coordenadas, armamos el link de Google Maps
+      if (latitud && longitud) {
+        const urlMapa = `https://www.google.com/maps?q=${latitud},${longitud}`;
+        mensaje += `\n*Ubicación GPS:* [📍 Ver en Google Maps](${urlMapa})`;
+      }
 
       await axios.post(url, {
         chat_id: this.chatId,
         text: mensaje,
-        parse_mode: 'Markdown' // Permite enviar texto en negrita, cursiva, etc.
+        parse_mode: 'Markdown',
+        disable_web_page_preview: false // Asegura que Telegram cargue la vista previa del mapa
       });
 
       this.logger.log(`Notificación enviada exitosamente a Telegram por el bus ${idBus}`);
     } catch (error) {
       this.logger.error('Error al enviar el mensaje a Telegram', error);
-      // Nota: No lanzamos la excepción para que no interrumpa el flujo principal si Telegram falla.
     }
   }
+  
 }

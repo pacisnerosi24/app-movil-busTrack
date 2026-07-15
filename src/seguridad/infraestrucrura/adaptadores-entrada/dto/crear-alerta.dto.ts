@@ -1,6 +1,6 @@
-import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsNumber, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
 
-// Exportamos el Enum para usarlo en el controlador y asegurar consistencia
 export enum TipoAlertaEnum {
   PANICO_MANUAL = 'PANICO_MANUAL',
   IA_ACUSTICO = 'IA_ACUSTICO',
@@ -15,4 +15,14 @@ export class CrearAlertaDto {
   @IsNotEmpty({ message: 'El tipo de alerta es obligatorio.' })
   readonly tipo!: TipoAlertaEnum;
 
+  // Transformamos el string del form-data a Number automáticamente
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'La latitud debe ser un número válido.' })
+  readonly latitud?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'La longitud debe ser un número válido.' })
+  readonly longitud?: number;
 }
