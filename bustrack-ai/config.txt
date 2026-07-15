@@ -1,0 +1,11 @@
+
+# BusTrack - Configuración del Modelo
+# Generado el: 2026-07-15 15:55:03.884376
+
+MODELO = 'bustrack_model_int8.tflite'
+LABELS = ['normal', 'grito', 'pelea', 'choque']
+TAMANO_ENTRADA = (128, 128)
+FORMATO = 'INT8' if True else 'Float16'
+UMBRAL_ANOMALIA = 0.6
+CLASES_NORMALES = ['normal']
+CLASES_ANOMALIA = ['grito', 'pelea', 'choque']

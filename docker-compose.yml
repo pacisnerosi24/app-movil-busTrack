@@ -24,3 +24,12 @@ services:
     volumes:
       - ./mongodb_data:/data/db
     restart: unless-stopped
+
+  bustrack-ia:
+    build:
+      context: ./bustrack-ai
+      dockerfile: servicio/Dockerfile
+    container_name: bustrack-ia
+    ports:
+      - "8500:8500"
+    restart: unless-stopped
