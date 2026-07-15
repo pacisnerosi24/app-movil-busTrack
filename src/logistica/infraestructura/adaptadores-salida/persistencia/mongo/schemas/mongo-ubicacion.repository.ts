@@ -13,7 +13,7 @@ export class MongoUbicacionRepository implements IUbicacionRepository {
   ) {}
 
   async guardarUbicacion(bus: Bus): Promise<void> {
-    // Mapeamos de Dominio (Bus) a Infraestructura (Mongo)
+    // findOneAndUpdate para crear si hay uno nuevo o simplemente actualizar el registro
     await this.ubicacionModel.findOneAndUpdate(
       { idBus: bus.idBus },
       {
