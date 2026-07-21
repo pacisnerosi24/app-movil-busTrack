@@ -15,7 +15,7 @@ function fmtDist(m: number): string {
 }
 
 export default function MapScreen({ navigation }: any) {
-  const { token, rutaSeleccionada, userLoc, ubicStatus, esConductor, apiBase } = useApp();
+  const { token, rutaSeleccionada, userLoc, ubicStatus, esConductor, apiBase, busABordo, subirABordo, bajarDelBus } = useApp();
   const ruta = rutaSeleccionada;
   const modo: 'conductor' | 'pasajero' = esConductor ? 'conductor' : 'pasajero';
   const [transmisiones, setTransmisiones] = useState(0);
@@ -76,6 +76,8 @@ export default function MapScreen({ navigation }: any) {
   const [moviendo, setMoviendo] = useState(false);
   const [siguiendo, setSiguiendo] = useState(true);
   const [etaMe, setEtaMe] = useState<number | null>(null); // min hasta que el bus llega a ti
+  const [distBus, setDistBus] = useState<number | null>(null); // m al bus más cercano (para "a bordo")
+  const lejosDesde = useRef<number | null>(null); // marca cuándo te alejaste del bus (auto-bajar)
 
   useEffect(() => {
     let vivo = true;
@@ -182,6 +184,31 @@ export default function MapScreen({ navigation }: any) {
   function iniciarViaje() { setInicioMs(Date.now()); setTransmisiones(0); setEnViaje(true); }
   function finalizarViaje() { setEnViaje(false); }
 
+  // ── Detección "estás a bordo" (pasajero) ──
+  // Se sugiere subir cuando el bus va MUY cerca de ti; se baja solo cuando te
+  // alejas de forma sostenida. El botón de pánico funciona igual, pero si estás
+  // a bordo la alerta lleva el contexto del bus.
+  const A_BORDO_DE_ESTA = busABordo?.id === ruta?.id;
+  const UMBRAL_SUBIR = 60;   // m: tan cerca que seguramente vas dentro
+  const UMBRAL_BAJAR = 220;  // m: te alejaste del bus
+  const sugerirBordo = !esConductor && !busABordo && distBus != null && distBus <= UMBRAL_SUBIR;
+
+  // Auto-bajar: si estando a bordo te alejas >UMBRAL_BAJAR por ~15 s, se cierra.
+  useEffect(() => {
+    if (!A_BORDO_DE_ESTA || distBus == null) { lejosDesde.current = null; return; }
+    if (distBus > UMBRAL_BAJAR) {
+      if (lejosDesde.current == null) lejosDesde.current = Date.now();
+      else if (Date.now() - lejosDesde.current > 15000) { bajarDelBus(); lejosDesde.current = null; }
+    } else {
+      lejosDesde.current = null;
+    }
+  }, [distBus, A_BORDO_DE_ESTA]);
+
+  // Cambiar de ruta = ya no vas en el bus anterior.
+  useEffect(() => {
+    if (busABordo && ruta && busABordo.id !== ruta.id) bajarDelBus();
+  }, [ruta?.id]);
+
   // Dibuja "Tu parada" (la elegida por el usuario, o la más cercana a él).
   useEffect(() => {
     if (road && paradaActiva) {
@@ -259,6 +286,15 @@ export default function MapScreen({ navigation }: any) {
             if (rem < bestRem) bestRem = rem;
           }
           setEtaMe(Math.max(0, Math.ceil(bestRem / speedMps / 60)));
+        }
+        // Distancia al bus más cercano (base de la detección "estás a bordo").
+        if (userLoc && buses.length) {
+          let d = Infinity;
+          for (const b of buses) {
+            const dd = metrosEntre([b.lat, b.lng], [userLoc.lat, userLoc.lng]);
+            if (dd < d) d = dd;
+          }
+          setDistBus(d);
         }
       } else if (m.type === 'pick') {
         // El usuario tocó el mapa: elige la PARADA de la ruta más cercana al toque.
@@ -364,6 +400,24 @@ export default function MapScreen({ navigation }: any) {
       </View>
 
       <View style={styles.cardWrap} pointerEvents="box-none">
+      {!esConductor && A_BORDO_DE_ESTA && (
+        <View style={[styles.bordo, { borderColor: colors.green }]}>
+          <View style={styles.bordoDot} />
+          <Text style={styles.bordoTxt} numberOfLines={1}>A bordo del {ruta.nombre}</Text>
+          <TouchableOpacity style={styles.bordoBtn} onPress={bajarDelBus} activeOpacity={0.85}>
+            <Text style={styles.bordoBtnTxt}>Bajé</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {!esConductor && !busABordo && sugerirBordo && (
+        <View style={[styles.bordo, { borderColor: ruta.color }]}>
+          <MaterialCommunityIcons name="bus" size={20} color={ruta.color} />
+          <Text style={styles.bordoTxt} numberOfLines={1}>¿Vas a bordo del {ruta.nombre}?</Text>
+          <TouchableOpacity style={[styles.bordoBtn, { backgroundColor: ruta.color }]} onPress={() => subirABordo(ruta)} activeOpacity={0.85}>
+            <Text style={[styles.bordoBtnTxt, { color: '#fff' }]}>Sí, estoy a bordo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <View style={styles.card}>
         {/* Encabezado: ruta + cambiar (alineado a la derecha) */}
         <View style={styles.cardHeader}>
@@ -490,6 +544,11 @@ const styles = StyleSheet.create({
   fab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 165, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   fabTxt: { fontWeight: '800', fontSize: 13 },
   cardWrap: { position: 'absolute', left: 0, right: 0, bottom: 16, paddingHorizontal: 14, alignItems: 'center' },
+  bordo: { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%', maxWidth: 440, backgroundColor: '#fff', borderRadius: radius.md, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  bordoDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: colors.green },
+  bordoTxt: { flex: 1, color: colors.textDark, fontSize: 15, fontWeight: '800' },
+  bordoBtn: { backgroundColor: colors.lightBg, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
+  bordoBtnTxt: { fontWeight: '800', fontSize: 13, color: colors.textDark },
   card: { width: '100%', maxWidth: 440, backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   cardDot: { width: 9, height: 9, borderRadius: 5 },

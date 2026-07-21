@@ -24,6 +24,11 @@ type AppState = {
   seguimiento: boolean;
   iniciarSeguimiento: () => Promise<void>;
   logout: () => void;
+  // Bus en el que el pasajero confirmó ir a bordo (para el botón de pánico).
+  // null = no está a bordo de ningún bus.
+  busABordo: Ruta | null;
+  subirABordo: (r: Ruta) => void;
+  bajarDelBus: () => void;
   // URL del backend en uso (autodetectada o manual desde Ajustes).
   apiBase: string;
   updateApiBase: (url: string) => void;
@@ -43,7 +48,11 @@ export function AppProvider({
   const [userLoc, setUserLoc] = useState<Coords | null>(null);
   const [ubicStatus, setUbicStatus] = useState<UbicStatus>('idle');
   const [seguimiento, setSeguimiento] = useState(false);
+  const [busABordo, setBusABordo] = useState<Ruta | null>(null);
   const [apiBase, setApiBaseState] = useState<string>(getApiBase());
+
+  const subirABordo = useCallback((r: Ruta) => setBusABordo(r), []);
+  const bajarDelBus = useCallback(() => setBusABordo(null), []);
   const subRef = useRef<Location.LocationSubscription | null>(null);
 
   // Al arrancar: si hay una URL de backend guardada (ej. ngrok), la aplica.
@@ -109,6 +118,7 @@ export function AppProvider({
     <Ctx.Provider value={{
       token, usuario, esConductor, rutaSeleccionada, setRutaSeleccionada,
       userLoc, ubicStatus, seguimiento, iniciarSeguimiento, logout: onLogout,
+      busABordo, subirABordo, bajarDelBus,
       apiBase, updateApiBase,
     }}>
       {children}
