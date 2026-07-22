@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { RUTAS, Ruta } from '../mockData';
@@ -62,6 +62,16 @@ export default function RouteSelectScreen({ navigation }: any) {
     navigation.navigate('Mapa');
   }
 
+  // Estado del GPS resumido en un color (indicador junto al email).
+  const gpsOk = ubicStatus === 'ok' && !!userLoc;
+  const gpsBuscando = ubicStatus === 'loading' || (ubicStatus === 'ok' && !userLoc);
+  const gpsColor = gpsOk ? colors.green : gpsBuscando ? colors.orange : colors.red;
+  const gpsLabel = gpsOk
+    ? 'GPS en vivo, tu ubicación está activa'
+    : gpsBuscando
+      ? 'Buscando tu ubicación…'
+      : 'Sin ubicación · toca para reintentar';
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
@@ -69,7 +79,20 @@ export default function RouteSelectScreen({ navigation }: any) {
         <View style={styles.userBar}>
           <View style={{ flex: 1 }}>
             <Text style={styles.hola}>Hola,</Text>
-            <Text style={styles.email} numberOfLines={1}>{usuario.email}</Text>
+            <View style={styles.emailRow}>
+              {/* Estado del GPS = puntito de color (verde vivo / ámbar buscando /
+                  rojo sin permiso). En rojo se puede tocar para reintentar. */}
+              <TouchableOpacity
+                disabled={gpsOk || gpsBuscando}
+                onPress={iniciarSeguimiento}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={gpsLabel}
+              >
+                <View style={[styles.gpsDot, { backgroundColor: gpsColor }]} />
+              </TouchableOpacity>
+              <Text style={styles.email} numberOfLines={1}>{usuario.email}</Text>
+            </View>
           </View>
           <View style={[styles.rolBadge, { backgroundColor: esConductor ? colors.orange : colors.blue }]}>
             <Ionicons name={esConductor ? 'bus' : 'person'} size={12} color="#fff" />
@@ -104,30 +127,6 @@ export default function RouteSelectScreen({ navigation }: any) {
             <TouchableOpacity onPress={() => setBusqueda('')} hitSlop={8}>
               <Ionicons name="close-circle" size={18} color={colors.textMutedLight} />
             </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Estado de la ubicación del teléfono */}
-        <View style={styles.ubic}>
-          {(ubicStatus === 'loading' || (ubicStatus === 'ok' && !userLoc)) && (
-            <><ActivityIndicator size="small" color={colors.primaryLight} />
-              <Text style={styles.ubicTxt}>Detectando tu ubicación…</Text></>
-          )}
-          {ubicStatus === 'ok' && userLoc && (
-            <>
-              <Ionicons name="navigate" size={16} color={colors.green} />
-              <Text style={styles.ubicTxt}>GPS en vivo · tu ubicación está activa</Text>
-              <View style={styles.liveDot} />
-            </>
-          )}
-          {(ubicStatus === 'denied' || ubicStatus === 'error') && (
-            <>
-              <Ionicons name="location-outline" size={16} color={colors.orange} />
-              <Text style={styles.ubicTxt}>Sin ubicación · usando zona por defecto</Text>
-              <TouchableOpacity onPress={iniciarSeguimiento} hitSlop={8}>
-                <Text style={styles.ubicRetry}>Reintentar</Text>
-              </TouchableOpacity>
-            </>
           )}
         </View>
 
@@ -204,7 +203,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.navy },
   userBar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 },
   hola: { color: colors.textMutedLight, fontSize: 13 },
-  email: { color: colors.textLight, fontSize: 16, fontWeight: '700' },
+  emailRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  gpsDot: { width: 9, height: 9, borderRadius: 5 },
+  email: { color: colors.textLight, fontSize: 16, fontWeight: '700', flexShrink: 1 },
   salir: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.navyCard, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: colors.navyBorder },
   salirTxt: { color: colors.textLight, fontWeight: '700', fontSize: 13 },
   rolBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
@@ -215,10 +216,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: colors.textLight, fontSize: 15, fontWeight: '500', paddingVertical: 10 },
   vacio: { alignItems: 'center', gap: 10, paddingVertical: 40 },
   vacioTxt: { color: colors.textMutedLight, fontSize: 15, fontWeight: '600' },
-  ubic: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.navyCard, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 16, borderWidth: 1, borderColor: colors.navyBorder },
-  ubicTxt: { color: colors.textLight, fontSize: 13, fontWeight: '600', flex: 1 },
   ubicRetry: { color: colors.primaryLight, fontWeight: '800', fontSize: 13 },
-  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.green },
   card: { backgroundColor: colors.navyCard, borderRadius: radius.lg, padding: 16, marginBottom: 14, borderWidth: 1.5, borderColor: colors.navyBorder, shadowColor: '#1B2B4B', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
