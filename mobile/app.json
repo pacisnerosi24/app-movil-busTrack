@@ -7,16 +7,26 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tisisin.bustrack",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "RutaSegura usa el micrófono para detectar anomalías auditivas (gritos, peleas, choques) y proteger a los pasajeros."
+      }
     },
     "android": {
+      "package": "com.tisisin.bustrack",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -27,7 +37,14 @@
         {
           "locationWhenInUsePermission": "RutaSegura usa tu ubicación para mostrarte los buses cercanos y rastrear tu viaje en tiempo real."
         }
-      ]
-    ]
+      ],
+      "expo-audio"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e2317a98-7473-49f3-a210-d49dedf9fb5b"
+      }
+    },
+    "owner": "tisisin"
   }
 }

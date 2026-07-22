@@ -1,0 +1,4 @@
+normal
+grito
+pelea
+choque

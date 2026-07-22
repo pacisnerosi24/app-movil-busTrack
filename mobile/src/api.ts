@@ -82,3 +82,35 @@ export async function dispararAlerta(token: string, idBus: string): Promise<Aler
   if (!r.ok) throw new Error(d?.message ?? `Error ${r.status} enviando alerta`);
   return d as AlertaResp;
 }
+
+export type DeteccionAudioResp = {
+  etiqueta: string;
+  confianza: number;
+  esAnomalia: boolean;
+  probabilidades: Record<string, number>;
+};
+
+// Sube un clip de audio para que la IA del backend lo clasifique
+// (POST /api/seguridad/deteccion-audio, protegido con JWT).
+export async function analizarAudio(
+  token: string,
+  uri: string,
+  idBus?: string,
+): Promise<DeteccionAudioResp> {
+  const nombre = uri.split('/').pop() ?? 'clip.m4a';
+  const extension = nombre.split('.').pop()?.toLowerCase();
+  const tipo = extension === 'wav' ? 'audio/wav' : 'audio/m4a';
+
+  const form = new FormData();
+  form.append('audio', { uri, name: nombre, type: tipo } as any);
+  if (idBus) form.append('idBus', idBus);
+
+  const r = await fetch(`${getApiBase()}/api/seguridad/deteccion-audio`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d?.message ?? `Error ${r.status} analizando el audio`);
+  return d as DeteccionAudioResp;
+}

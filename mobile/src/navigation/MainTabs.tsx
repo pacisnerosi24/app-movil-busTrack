@@ -3,7 +3,7 @@ import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import HomeStack from './HomeStack';
-import SosScreen from '../screens/SosScreen';
+import SosStack from './SosStack';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { colors } from '../theme';
@@ -47,7 +47,7 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="SOS"
-        component={SosScreen}
+        component={SosStack}
         options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} name={focused ? 'alert-circle' : 'alert-circle-outline'} /> }}
       />
       <Tab.Screen
