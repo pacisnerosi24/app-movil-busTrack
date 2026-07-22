@@ -1,0 +1,6 @@
+{
+  // Usa el TypeScript del proyecto (5.9.x) en vez del interno de VS Code.
+  // Evita falsos errores como target 'ES2023' o module 'preserve' no válidos.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}
