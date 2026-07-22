@@ -154,9 +154,9 @@ export default function RouteSelectScreen({ navigation }: any) {
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.name}>{r.nombre}</Text>
+                  <Text style={styles.name} numberOfLines={1}>{r.nombre}</Text>
                   <View style={[styles.badge, { backgroundColor: r.color + '22' }]}>
-                    <Text style={[styles.badgeTxt, { color: r.color }]}>{r.etiqueta}</Text>
+                    <Text style={[styles.badgeTxt, { color: r.color }]} numberOfLines={1}>{r.etiqueta}</Text>
                   </View>
                 </View>
                 <Text style={styles.route}>{r.origen}  →  {r.destino}</Text>
@@ -175,11 +175,14 @@ export default function RouteSelectScreen({ navigation }: any) {
             )}
 
             <View style={styles.metaRow}>
-              <Meta icon="time-outline" text={`${r.minutos} min recorrido`} />
+              <Meta icon="time-outline" text={`${r.minutos} min`} />
               <View style={styles.sep} />
               <Meta icon="location-outline" text={`${r.paradas} paradas`} />
-              <View style={styles.sep} />
-              <Text style={styles.metaTxt} numberOfLines={1}>{r.tipoBus}</Text>
+            </View>
+
+            <View style={styles.tipoRow}>
+              <Ionicons name="bus-outline" size={14} color={colors.textMutedLight} />
+              <Text style={styles.tipoTxt} numberOfLines={1}>{r.tipoBus}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -220,8 +223,8 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  name: { color: colors.textLight, fontSize: 19, fontWeight: '800' },
-  badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8 },
+  name: { color: colors.textLight, fontSize: 19, fontWeight: '800', flexShrink: 1 },
+  badge: { flexShrink: 1, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8 },
   badgeTxt: { fontSize: 12, fontWeight: '700' },
   route: { color: colors.textMutedLight, fontSize: 14, marginTop: 3 },
   prox: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
@@ -232,4 +235,6 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaTxt: { color: colors.textMutedLight, fontSize: 13 },
   sep: { width: 1, height: 14, backgroundColor: colors.navyBorder },
+  tipoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  tipoTxt: { flex: 1, color: colors.textMutedLight, fontSize: 13, fontWeight: '600' },
 });
