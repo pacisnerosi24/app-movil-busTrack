@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AlertaOrmEntity } from './infraestrucrura/adaptadores-salida/persistencia/postgres/alerta.orm-entity';
+import { AlertaOrmEntity } from './infraestructura/adaptadores-salida/persistencia/postgres/alerta.orm-entity';
 import { ALERTA_REPOSITORY } from './aplicacion/puertos/alerta.repository.interface';
-import { PostgresAlertaRepository } from './infraestrucrura/adaptadores-salida/persistencia/postgres/postgres-alerta.repository';
+import { PostgresAlertaRepository } from './infraestructura/adaptadores-salida/persistencia/postgres/postgres-alerta.repository';
 import { DispararAlertaService } from './aplicacion/casos-uso/disparar-alerta.service';
-import { EmergenciasController } from './infraestrucrura/adaptadores-entrada/controladores/emergencias.controller';
+import { EmergenciasController } from './infraestructura/adaptadores-entrada/controladores/emergencias.controller';
 import { DETECTOR_ACUSTICO } from './aplicacion/puertos/detector-acustico.interface';
-import { HttpDetectorAcusticoAdapter } from './infraestrucrura/adaptadores-salida/ia/http-detector-acustico.adapter';
+import { HttpDetectorAcusticoAdapter } from './infraestructura/adaptadores-salida/ia/http-detector-acustico.adapter';
 import { AnalizarAudioService } from './aplicacion/casos-uso/analizar-audio.service';
-import { DeteccionAcusticaController } from './infraestrucrura/adaptadores-entrada/controladores/deteccion-acustica.controller';
+import { DeteccionAcusticaController } from './infraestructura/adaptadores-entrada/controladores/deteccion-acustica.controller';
 
 @Module({
   imports: [
