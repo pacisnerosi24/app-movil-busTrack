@@ -130,13 +130,36 @@ export default function MapScreen({ navigation }: any) {
     });
   }, [ruta?.id, anchoredPath, nombresBase, road, metrics]);
   const speedMps = road && road.durationSec > 0 ? road.distanceM / road.durationSec : 5;
-  // Cada PARADA de la ruta con su posición sobre el trazado real (para el ETA).
+  // Paradas SELECCIONABLES: densas y regulares (~cada 400 m) sobre el trazado
+  // real, para poder tocar cualquier tramo y ver su tiempo. Cada una hereda el
+  // nombre de la parada nombrada más cercana (para "Llega a…"/"Próxima parada").
   const paradasRoad = useMemo(() => {
-    if (!road) return [] as { i: number; nombre: string; pos: [number, number]; idx: number; alongM: number }[];
-    return paradas.map((p, i) => {
-      const pr = proyectar(road.coords, metrics.cum, p.pos);
-      return { i, nombre: p.nombre, pos: p.pos, idx: pr.idx, alongM: pr.alongM };
-    });
+    type P = { i: number; nombre: string; pos: [number, number]; idx: number; alongM: number };
+    if (!road || metrics.total <= 0) return [] as P[];
+    const STOP_M = 400;
+    const nombradas = paradas.map((p) => ({
+      alongM: proyectar(road.coords, metrics.cum, p.pos).alongM,
+      nombre: p.nombre,
+    }));
+    const nombreEn = (a: number) => {
+      let best = nombradas[0]?.nombre ?? 'tu parada', bd = Infinity;
+      for (const n of nombradas) { const d = Math.abs(n.alongM - a); if (d < bd) { bd = d; best = n.nombre; } }
+      return best;
+    };
+    const total = metrics.total;
+    const n = Math.max(1, Math.round(total / STOP_M));
+    const out: P[] = [];
+    for (let k = 0; k <= n; k++) {
+      const alongM = Math.min(total, (k * total) / n);
+      let idx = 1;
+      while (idx < metrics.cum.length && metrics.cum[idx] < alongM) idx++;
+      const c0 = road.coords[idx - 1], c1 = road.coords[idx] ?? c0;
+      const seg = (metrics.cum[idx] - metrics.cum[idx - 1]) || 1;
+      const t = Math.min(1, Math.max(0, (alongM - metrics.cum[idx - 1]) / seg));
+      const pos: [number, number] = [c0[0] + (c1[0] - c0[0]) * t, c0[1] + (c1[1] - c0[1]) * t];
+      out.push({ i: k, nombre: nombreEn(alongM), pos, idx: idx - 1, alongM });
+    }
+    return out;
   }, [road, paradas, metrics]);
 
   // Parada ELEGIDA por el usuario (tocando una parada). Null = la más cercana a él.
@@ -237,11 +260,13 @@ export default function MapScreen({ navigation }: any) {
 
   // El HTML se genera una vez por ruta (marcador inicial en el ancla; el
   // punto "Tú" luego se mueve en vivo con window.__setUser).
+  // Posiciones de las paradas intermedias (sin los terminales, ya etiquetados).
+  const marcas = useMemo(() => paradasRoad.slice(1, -1).map((p) => p.pos), [paradasRoad]);
   const html = useMemo(
     () => (road && ruta
-      ? buildMapHtml(apiBase, ruta.idBus, ruta.color, road.coords, paradas, etaTotal, 1, (esConductor || ruta.real) ? null : anchor, modo)
+      ? buildMapHtml(apiBase, ruta.idBus, ruta.color, road.coords, paradas, etaTotal, 1, (esConductor || ruta.real) ? null : anchor, modo, road.distanceM, marcas)
       : ''),
-    [road, ruta?.id, etaTotal, paradas, anchor, modo, apiBase],
+    [road, ruta?.id, etaTotal, paradas, anchor, modo, apiBase, marcas],
   );
 
   if (!ruta) {

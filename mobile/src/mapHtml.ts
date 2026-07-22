@@ -19,10 +19,13 @@ export function buildMapHtml(
   velocidad: number, // factor de reproducción: 1 = tiempo real, 5 = 5x, etc.
   user: { lat: number; lng: number } | null,
   modo: 'conductor' | 'pasajero',
+  distanciaM = 0, // longitud real de la ruta en metros (para espaciar las flechas)
+  marcas: LatLng[] = [], // paradas intermedias (mismas posiciones seleccionables en RN)
 ): string {
   const routeJson = JSON.stringify(route);
   const paradasJson = JSON.stringify(paradas);
   const userJson = JSON.stringify(user);
+  const marcasJson = JSON.stringify(marcas);
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -47,9 +50,13 @@ export function buildMapHtml(
       transition:transform .35s linear; will-change:transform; }
     .bus-dir { width:0; height:0; margin-top:-5px; border-left:7px solid transparent; border-right:7px solid transparent;
       border-bottom:11px solid ${color}; filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff); }
-    /* Flechas de dirección sobre la ruta (hacia dónde va el bus) */
-    .arrow { color:${color}; font-size:15px; line-height:15px; font-weight:900;
-      text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
+    /* Chevrons de dirección sobre la ruta (hacia dónde va el bus) */
+    .arrow { width:18px; height:18px; }
+    .arrow svg { width:18px; height:18px; display:block;
+      filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.5)); }
+    /* Paradas intermedias regulares (visuales): punto pequeño sobre la línea */
+    .stop-min { width:9px; height:9px; border-radius:50%; background:#fff;
+      border:2px solid ${color}; box-shadow:0 1px 3px rgba(0,0,0,.3); }
     /* Contenedor que centra el punto exactamente sobre la coordenada */
     .stop-wrap { width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
     .stop { width:12px; height:12px; border-radius:50%; background:#fff;
@@ -80,6 +87,8 @@ export function buildMapHtml(
     var MODO = '${modo}';
     var MIN = ${minutos};
     var COLOR = '${color}';
+    var DIST_M = ${distanciaM}; // longitud real de la ruta (m)
+    var MARCAS = ${marcasJson}; // paradas intermedias a dibujar
     // Duración = tiempo real del viaje (min→ms) dividido por el factor de velocidad.
     // x1 = el bus tarda los minutos reales; x5/x12 acelera la simulación.
     var BASE = MIN * 60000;
@@ -106,6 +115,13 @@ export function buildMapHtml(
       if (!me) { me = L.marker([la, ln], { icon: meIcon, zIndexOffset: 500 }).addTo(map).bindPopup('Tú'); }
       else { me.setLatLng([la, ln]); }
     };
+    // Ubicación ACTUAL del usuario: usa el marcador vivo 'me' (se actualiza por
+    // GPS) o el USER inicial. Base para "seguir el bus más cercano a ti".
+    function userPos(){
+      if (me){ var ll = me.getLatLng(); return [ll.lat, ll.lng]; }
+      if (USER) return [USER.lat, USER.lng];
+      return null;
+    }
     // Marcador "Tu parada": el punto de la ruta donde te recoge el bus.
     var stopIcon = L.divIcon({ className:'', html:'<div class="parada-me"></div>', iconSize:[16,16], iconAnchor:[8,8] });
     var stopMe = null;
@@ -130,7 +146,17 @@ export function buildMapHtml(
     map.on('click', function(e){ post({ type:'pick', lat:e.latlng.lat, lng:e.latlng.lng }); });
     window.__recenter = function(){
       following = true;
-      if (buses[0]) map.setView(buses[0].marker.getLatLng(), map.getZoom(), { animate: true });
+      // Centra (y luego sigue) el bus MÁS CERCANO a tu ubicación real.
+      var up = userPos(), target = buses[0];
+      if (up){
+        var bestD = Infinity;
+        for (var b = 0; b < buses.length; b++){
+          var ll = buses[b].marker.getLatLng();
+          var d = dist([ll.lat, ll.lng], up);
+          if (d < bestD){ bestD = d; target = buses[b]; }
+        }
+      }
+      if (target) map.setView(target.marker.getLatLng(), map.getZoom(), { animate: true });
       post({ type:'follow', following:true });
     };
     // Centra la cámara en TU ubicación (suelta el seguimiento del bus).
@@ -180,14 +206,29 @@ export function buildMapHtml(
     L.polyline(ROUTE, { color: COLOR, weight: 6, opacity: .55, lineCap: 'round' }).addTo(map);
     var traveled = L.polyline([], { color: COLOR, weight: 6, opacity: .95, lineCap: 'round' }).addTo(map);
 
-    // Flechas repartidas a lo largo de la ruta que apuntan en el sentido de avance.
-    var paso = Math.max(1, Math.floor(ROUTE.length / 9));
-    for (var a = paso; a < ROUTE.length - 1; a += paso) {
-      var dLat = ROUTE[a+1][0] - ROUTE[a][0], dLng = ROUTE[a+1][1] - ROUTE[a][1];
-      var deg = Math.atan2(-dLat, dLng) * 180 / Math.PI; // 0 = apunta al este (▶)
-      L.marker(ROUTE[a], { interactive:false, keyboard:false, icon: L.divIcon({
-        className:'', html:'<div class="arrow" style="transform:rotate('+deg+'deg)">▶</div>',
-        iconSize:[16,16], iconAnchor:[8,8] }) }).addTo(map);
+    // Distancias acumuladas a lo largo de la ruta (para espaciar por distancia
+    // REAL, no por cantidad de puntos). 'dist' está declarada más abajo (hoisted).
+    var cum=[0]; for (var ci=1; ci<ROUTE.length; ci++) cum[ci]=cum[ci-1]+dist(ROUTE[ci-1],ROUTE[ci]);
+    var total=cum[cum.length-1] || 1;
+
+    // Paradas intermedias regulares (calculadas en RN, coinciden EXACTAMENTE con
+    // las seleccionables): puntito sobre la línea. Así puedes tocar cualquiera.
+    for (var s = 0; s < MARCAS.length; s++) {
+      L.marker(MARCAS[s], { interactive:false, keyboard:false, icon: L.divIcon({
+        className:'', html:'<div class="stop-min"></div>', iconSize:[9,9], iconAnchor:[4.5,4.5] }) }).addTo(map);
+    }
+
+    // Chevrons de dirección espaciados por distancia (~cada 800 m). Blancos y
+    // nítidos, apuntando en el sentido de avance del bus.
+    var CHEVRON = '<svg viewBox="0 0 24 24"><path d="M8 4l9 8-9 8" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var nArr = DIST_M > 0 ? Math.max(3, Math.floor(DIST_M / 800)) : 8;
+    for (var a = 1; a < nArr; a++) {
+      var fr = a / nArr;
+      var q0 = pointAt(Math.max(0, fr - 0.006)), q1 = pointAt(Math.min(1, fr + 0.006));
+      var deg = Math.atan2(-(q1.la - q0.la), (q1.ln - q0.ln)) * 180 / Math.PI; // 0 = este
+      L.marker([q1.la, q1.ln], { interactive:false, keyboard:false, icon: L.divIcon({
+        className:'', html:'<div class="arrow" style="transform:rotate('+deg+'deg)">'+CHEVRON+'</div>',
+        iconSize:[18,18], iconAnchor:[9,9] }) }).addTo(map);
     }
 
     // Paradas
@@ -227,10 +268,9 @@ export function buildMapHtml(
                    phase: bi / NBUS, frac: 0, la: ROUTE[0][0], ln: ROUTE[0][1] });
     }
 
-    // Distancias acumuladas (velocidad constante a lo largo de la ruta real)
+    // Distancia euclidiana entre dos puntos (velocidad constante en la ruta real).
+    // 'cum'/'total' ya se calcularon arriba usando esta función (hoisted).
     function dist(a,b){ var dx=a[0]-b[0], dy=a[1]-b[1]; return Math.sqrt(dx*dx+dy*dy); }
-    var cum=[0]; for (var i=1;i<ROUTE.length;i++) cum[i]=cum[i-1]+dist(ROUTE[i-1],ROUTE[i]);
-    var total=cum[cum.length-1] || 1;
 
     // ¿Qué parada sigue? (por cercanía al avance)
     var stopDist = PARADAS.map(function(p){
@@ -269,7 +309,7 @@ export function buildMapHtml(
     function fracDe(phase){ return DUR > 0 ? (((Date.now() / DUR) + phase) % 1) : 0; }
 
     function frame(){
-      var lista = [], nearIdx = 0, nearD = Infinity;
+      var lista = [], nearIdx = 0, nearD = Infinity, up = userPos();
       for (var b = 0; b < buses.length; b++){
         var f = fracDe(buses[b].phase);
         var p = pointAt(f);
@@ -277,7 +317,7 @@ export function buildMapHtml(
         orientar(buses[b].marker, rumboSeg(p.seg));
         buses[b].frac = f; buses[b].la = p.la; buses[b].ln = p.ln;
         lista.push({ frac:f, lat:p.la, lng:p.ln });
-        if (USER){ var d = dist([p.la,p.ln],[USER.lat,USER.lng]); if (d < nearD){ nearD = d; nearIdx = b; } }
+        if (up){ var d = dist([p.la,p.ln], up); if (d < nearD){ nearD = d; nearIdx = b; } }
       }
       var pr = buses[nearIdx];
       if (following) map.panTo([pr.la, pr.ln], { animate:false });
